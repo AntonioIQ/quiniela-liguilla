@@ -35,22 +35,31 @@ class API {
         try {
             const params = new URLSearchParams({
                 action: 'parse',
-                page: 'Torneo_Apertura_2024_(México)',
+                page: encodeURIComponent('Torneo_Apertura_2024_(México)'),
                 format: 'json',
                 prop: 'sections|text',
                 origin: '*',
                 formatversion: '2'
-            });
+            }).toString();
     
             console.log('Intentando obtener datos de Wikipedia...');
-            console.log(`URL: ${this.WIKI_API}?${params}`);
+            const url = `${this.WIKI_API}?${params}`;
+            console.log('URL:', url);
             
-            // Primero obtener las secciones para encontrar el ID correcto
-            const response = await fetch(`${this.WIKI_API}?${params}`);
+            // Primera llamada para obtener las secciones
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                mode: 'cors'
+            });
+    
             const data = await response.json();
             console.log('Secciones disponibles:', data);
     
-            // Una vez que tengamos el ID correcto de la sección, hacemos la segunda llamada
+            // Buscar la sección de la Liguilla
             if (data.parse && data.parse.sections) {
                 const liguillaSectionId = data.parse.sections.find(
                     section => section.line.toLowerCase().includes('liguilla')
@@ -59,18 +68,32 @@ class API {
                 if (liguillaSectionId) {
                     const paramsWithSection = new URLSearchParams({
                         action: 'parse',
-                        page: 'Torneo_Apertura_2024_(México)',
+                        page: encodeURIComponent('Torneo_Apertura_2024_(México)'),
                         format: 'json',
                         prop: 'text',
                         section: liguillaSectionId.toString(),
                         origin: '*'
+                    }).toString();
+    
+                    const sectionUrl = `${this.WIKI_API}?${paramsWithSection}`;
+                    console.log('URL sección:', sectionUrl);
+    
+                    const sectionResponse = await fetch(sectionUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        mode: 'cors'
                     });
     
-                    const sectionResponse = await fetch(`${this.WIKI_API}?${paramsWithSection}`);
                     const sectionData = await sectionResponse.json();
+                    console.log('Datos de sección:', sectionData);
                     
                     if (sectionData.parse && sectionData.parse.text) {
-                        return this.procesarTablaLiguilla(sectionData.parse.text['*']);
+                        const resultados = this.procesarTablaLiguilla(sectionData.parse.text['*']);
+                        console.log('Resultados procesados:', resultados);
+                        return resultados;
                     }
                 }
             }
@@ -81,7 +104,6 @@ class API {
             throw error;
         }
     }
-
     procesarTablaLiguilla(htmlContent) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');
