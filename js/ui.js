@@ -1,3 +1,6 @@
+import api from './api.js';
+import quiniela from './quiniela.js';
+
 class UI {
     constructor() {
         // Secciones principales
@@ -19,7 +22,16 @@ class UI {
 
     async inicializarEventos() {
         // Evento de login con GitHub
-        this.githubLoginBtn.addEventListener('click', () => this.handleLogin());
+        this.githubLoginBtn.addEventListener('click', async () => {
+            try {
+                const success = await api.authenticateWithGithub();
+                if (success) {
+                    await this.inicializarQuiniela();
+                }
+            } catch (error) {
+                this.mostrarError('Error al iniciar sesión');
+            }
+        });
 
         // Eventos de selección
         this.fechaSelect.addEventListener('change', () => this.actualizarEquiposLocales());
@@ -29,26 +41,15 @@ class UI {
         this.addPredictionBtn.addEventListener('click', () => this.agregarPrediccion());
 
         // Inicializar si hay token guardado
-        if (window.api.accessToken) {
+        if (localStorage.getItem('github_token')) {
             await this.inicializarQuiniela();
-        }
-    }
-
-    async handleLogin() {
-        try {
-            const success = await window.api.authenticateWithGithub();
-            if (success) {
-                await this.inicializarQuiniela();
-            }
-        } catch (error) {
-            this.mostrarError('Error al iniciar sesión');
         }
     }
 
     async inicializarQuiniela() {
         try {
             this.mostrarCargando();
-            const success = await window.quiniela.inicializar();
+            const success = await quiniela.inicializar();
             if (success) {
                 this.mostrarSeccionQuiniela();
                 this.cargarFechas();
@@ -67,7 +68,7 @@ class UI {
     }
 
     cargarFechas() {
-        const fechas = window.quiniela.obtenerFechasDisponibles();
+        const fechas = quiniela.obtenerFechasDisponibles();
         this.fechaSelect.innerHTML = '<option value="">Selecciona una fecha</option>';
         fechas.forEach(fecha => {
             const option = document.createElement('option');
@@ -79,7 +80,7 @@ class UI {
 
     actualizarEquiposLocales() {
         const fecha = this.fechaSelect.value;
-        const equipos = window.quiniela.obtenerEquiposLocales(fecha);
+        const equipos = quiniela.obtenerEquiposLocales(fecha);
         
         this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
         equipos.forEach(equipo => {
@@ -95,7 +96,7 @@ class UI {
     actualizarEquiposVisitantes() {
         const fecha = this.fechaSelect.value;
         const local = this.localSelect.value;
-        const equipos = window.quiniela.obtenerEquiposVisitantes(fecha, local);
+        const equipos = quiniela.obtenerEquiposVisitantes(fecha, local);
         
         this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
         equipos.forEach(equipo => {
@@ -116,7 +117,7 @@ class UI {
                 golesVisitante: parseInt(this.golesVisitanteInput.value)
             };
 
-            await window.quiniela.guardarPrediccion(prediccion);
+            await quiniela.guardarPrediccion(prediccion);
             this.actualizarTablaPredicciones();
             this.limpiarFormulario();
             this.mostrarExito('Predicción guardada correctamente');
@@ -126,7 +127,7 @@ class UI {
     }
 
     async actualizarTablaPredicciones() {
-        const predicciones = await window.quiniela.cargarPredicciones();
+        const predicciones = await quiniela.cargarPredicciones();
         this.prediccionesTable.innerHTML = '';
 
         predicciones.forEach(prediccion => {
@@ -150,7 +151,7 @@ class UI {
     async eliminarPrediccion(id) {
         if (confirm('¿Estás seguro de eliminar esta predicción?')) {
             try {
-                await window.api.eliminarPrediccion(id);
+                await api.eliminarPrediccion(id);
                 this.actualizarTablaPredicciones();
                 this.mostrarExito('Predicción eliminada correctamente');
             } catch (error) {
@@ -159,7 +160,6 @@ class UI {
         }
     }
 
-    // Utilidades
     formatearFecha(fecha) {
         return fecha.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
@@ -177,7 +177,6 @@ class UI {
     }
 
     mostrarCargando() {
-        // Implementar indicador de carga
         document.body.style.cursor = 'wait';
     }
 
@@ -202,5 +201,5 @@ class UI {
     }
 }
 
-// Crear instancia global
-window.ui = new UI();
+const ui = new UI();
+export default ui;

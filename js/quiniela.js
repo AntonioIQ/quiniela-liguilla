@@ -1,3 +1,5 @@
+import api from './api.js';
+
 class Quiniela {
     constructor() {
         this.partidos = [];
@@ -7,7 +9,7 @@ class Quiniela {
     async inicializar() {
         try {
             // Cargar partidos desde Wikipedia
-            this.partidos = await window.api.obtenerResultadosWiki();
+            this.partidos = await api.obtenerResultadosWiki();
             // Cargar predicciones del usuario desde GitHub
             await this.cargarPredicciones();
             return true;
@@ -19,7 +21,7 @@ class Quiniela {
 
     async cargarPredicciones() {
         try {
-            this.predicciones = await window.api.obtenerPredicciones();
+            this.predicciones = await api.obtenerPredicciones();
             return this.predicciones;
         } catch (error) {
             console.error('Error al cargar predicciones:', error);
@@ -43,7 +45,7 @@ class Quiniela {
             }
 
             // Guardar en GitHub
-            const resultado = await window.api.guardarPrediccion(prediccion);
+            const resultado = await api.guardarPrediccion(prediccion);
             
             // Actualizar lista local
             this.predicciones.push(prediccion);
@@ -117,5 +119,5 @@ class Quiniela {
     }
 }
 
-// Exportar una instancia única
-window.quiniela = new Quiniela();
+const quiniela = new Quiniela();
+export default quiniela;

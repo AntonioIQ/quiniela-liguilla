@@ -1,28 +1,36 @@
-// Configuración
-const GITHUB_API = 'https://api.github.com';
-const WIKI_API = 'https://es.wikipedia.org/w/api.php';
-const REPO_OWNER = ''; // Tu usuario de GitHub
-const REPO_NAME = ''; // Nombre de tu repositorio
-
 class API {
     constructor() {
+        this.GITHUB_API = 'https://api.github.com';
+        this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
+        // Inicializar con valores del localStorage si existen
+        this.REPO_OWNER = localStorage.getItem('repo_owner') || '';
+        this.REPO_NAME = localStorage.getItem('repo_name') || '';
         this.accessToken = localStorage.getItem('github_token');
     }
 
-    // Autenticación con GitHub
     async authenticateWithGithub() {
-        // Aquí implementaremos OAuth con GitHub
-        // Por ahora, usaremos un token personal
-        const token = prompt('Por favor ingresa tu GitHub Personal Access Token:');
-        if (token) {
-            this.accessToken = token;
-            localStorage.setItem('github_token', token);
-            return true;
+        try {
+            // Si ya tenemos un token guardado, lo usamos
+            const savedToken = localStorage.getItem('github_token');
+            if (savedToken) {
+                this.accessToken = savedToken;
+                return true;
+            }
+            
+            // Si no, pedimos uno nuevo
+            const token = prompt('Por favor ingresa tu GitHub Personal Access Token:');
+            if (token) {
+                this.accessToken = token;
+                localStorage.setItem('github_token', token);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error en autenticación:', error);
+            return false;
         }
-        return false;
     }
 
-    // Obtener resultados de Wikipedia
     async obtenerResultadosWiki() {
         try {
             const params = new URLSearchParams({
@@ -34,25 +42,23 @@ class API {
                 origin: '*'
             });
 
-            const response = await fetch(`${WIKI_API}?${params}`);
+            const response = await fetch(`${this.WIKI_API}?${params}`);
             const data = await response.json();
             
             if (!data.parse || !data.parse.text) {
                 throw new Error('No se encontraron datos');
             }
 
-            // Procesar el HTML recibido
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(data.parse.text['*'], 'text/html');
-            return this.procesarTablaLiguilla(doc);
+            return this.procesarTablaLiguilla(data.parse.text['*']);
         } catch (error) {
             console.error('Error al obtener datos de Wikipedia:', error);
             throw error;
         }
     }
 
-    // Procesar la tabla de la liguilla
-    procesarTablaLiguilla(doc) {
+    procesarTablaLiguilla(htmlContent) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, 'text/html');
         const tables = doc.querySelectorAll('table');
         const partidos = [];
         const fechasValidas = ['27 de noviembre', '28 de noviembre', '30 de noviembre', '1 de diciembre'];
@@ -64,28 +70,40 @@ class API {
                 if (cells.length > 1) {
                     const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
                     if (fechasValidas.some(f => fecha.includes(f))) {
-                        partidos.push({
+                        const partido = {
                             fecha: fecha,
                             local: cells[1]?.textContent?.trim().toLowerCase() || '',
                             marcador: cells[2]?.textContent?.trim().split('(')[0].trim() || '',
-                            visitante: cells[3]?.textContent?.trim().toLowerCase() || ''
-                        });
+                            visitante: cells[3]?.textContent?.trim().toLowerCase() || '',
+                            estadio: cells[4]?.textContent?.trim().split(',')[0] || ''
+                        };
+                        partidos.push(partido);
                     }
                 }
             });
         });
 
+        console.log('Partidos encontrados:', partidos);
         return partidos;
     }
 
-    // Guardar predicción en GitHub Issues
+    setCredentials(owner, repo, token) {
+        this.REPO_OWNER = owner;
+        this.REPO_NAME = repo;
+        this.accessToken = token;
+        
+        localStorage.setItem('repo_owner', owner);
+        localStorage.setItem('repo_name', repo);
+        localStorage.setItem('github_token', token);
+    }
+
     async guardarPrediccion(prediccion) {
         if (!this.accessToken) {
             throw new Error('No hay token de acceso');
         }
 
         try {
-            const response = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/issues`, {
+            const response = await fetch(`${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `token ${this.accessToken}`,
@@ -109,7 +127,6 @@ class API {
         }
     }
 
-    // Obtener predicciones del usuario
     async obtenerPredicciones() {
         if (!this.accessToken) {
             throw new Error('No hay token de acceso');
@@ -117,7 +134,7 @@ class API {
 
         try {
             const response = await fetch(
-                `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=prediccion`, {
+                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion`, {
                 headers: {
                     'Authorization': `token ${this.accessToken}`
                 }
@@ -135,7 +152,6 @@ class API {
         }
     }
 
-    // Eliminar predicción
     async eliminarPrediccion(issueNumber) {
         if (!this.accessToken) {
             throw new Error('No hay token de acceso');
@@ -143,7 +159,7 @@ class API {
 
         try {
             const response = await fetch(
-                `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/issues/${issueNumber}`, {
+                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues/${issueNumber}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `token ${this.accessToken}`,
@@ -166,5 +182,5 @@ class API {
     }
 }
 
-// Exportar una instancia única
-window.api = new API();
+const api = new API();
+export default api;
