@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiniela Liguilla 2024</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Sección de Login con GitHub -->
+        <div id="login-section" class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h1 class="text-2xl font-bold text-center mb-6">Quiniela Liguilla 2024</h1>
+            <div class="flex flex-col space-y-4">
+                <button id="github-login" class="flex items-center justify-center bg-gray-900 text-white py-2 px-4 rounded-lg hover:bg-gray-800">
+                    <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                    </svg>
+                    Iniciar sesión con GitHub
+                </button>
+            </div>
+        </div>
+
+        <!-- Sección de Quiniela (inicialmente oculta) -->
+        <div id="quiniela-section" class="hidden">
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <h2 class="text-xl font-bold mb-4">Nuevo Pronóstico</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Fecha</label>
+                        <select id="fecha" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </select>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4 md:col-span-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Local</label>
+                            <select id="local" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Goles</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="goles-local" min="0" value="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <span class="mt-1">-</span>
+                                <input type="number" id="goles-visitante" min="0" value="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Visitante</label>
+                            <select id="visitante" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button id="add-prediction-btn" class="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600">
+                        Guardar Pronóstico
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabla de Predicciones -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Mis Pronósticos</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marcador</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitante</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="predicciones" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/quiniela.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html>
