@@ -25,7 +25,8 @@ class Quiniela {
             return this.predicciones;
         } catch (error) {
             console.error('Error al cargar predicciones:', error);
-            throw error;
+            this.predicciones = [];
+            return [];
         }
     }
 
@@ -36,12 +37,13 @@ class Quiniela {
                 throw new Error('Predicción inválida');
             }
 
-            // Verificar si ya existe una predicción para este partido
+            // Verificar si ya existe una predicción para este participante y partido
             if (this.predicciones.some(p => 
+                p.participante === prediccion.participante &&
                 p.fecha === prediccion.fecha && 
                 p.local === prediccion.local && 
                 p.visitante === prediccion.visitante)) {
-                throw new Error('Ya existe una predicción para este partido');
+                throw new Error('Ya existe una predicción tuya para este partido');
             }
 
             // Guardar en GitHub
@@ -59,7 +61,7 @@ class Quiniela {
 
     validarPrediccion(prediccion) {
         // Validar que todos los campos necesarios estén presentes
-        if (!prediccion.fecha || !prediccion.local || !prediccion.visitante || 
+        if (!prediccion.participante || !prediccion.fecha || !prediccion.local || !prediccion.visitante || 
             prediccion.golesLocal === undefined || prediccion.golesVisitante === undefined) {
             return false;
         }
@@ -69,28 +71,41 @@ class Quiniela {
             return false;
         }
 
+        // Validar el nombre del participante
+        if (prediccion.participante.length < 2) {
+            throw new Error('El nombre del participante debe tener al menos 2 caracteres');
+        }
+
         // Validar que el partido existe en la lista de partidos
-        return this.partidos.some(p => 
+        const partidoExiste = this.partidos.some(p => 
             p.fecha === prediccion.fecha && 
             p.local === prediccion.local && 
             p.visitante === prediccion.visitante
         );
+
+        if (!partidoExiste) {
+            throw new Error('El partido seleccionado no es válido');
+        }
+
+        return true;
     }
 
     obtenerFechasDisponibles() {
-        return [...new Set(this.partidos.map(p => p.fecha))];
+        return [...new Set(this.partidos.map(p => p.fecha))].sort();
     }
 
     obtenerEquiposLocales(fecha) {
-        return this.partidos
+        return [...new Set(this.partidos
             .filter(p => p.fecha === fecha)
-            .map(p => p.local);
+            .map(p => p.local))]
+            .sort();
     }
 
     obtenerEquiposVisitantes(fecha, local) {
         return this.partidos
             .filter(p => p.fecha === fecha && p.local === local)
-            .map(p => p.visitante);
+            .map(p => p.visitante)
+            .sort();
     }
 
     calcularPuntos(prediccion, resultado) {
@@ -116,6 +131,30 @@ class Quiniela {
         }
 
         return 0;
+    }
+
+    obtenerTablaPuntos() {
+        const tablaPuntos = {};
+
+        this.predicciones.forEach(prediccion => {
+            const partido = this.partidos.find(p => 
+                p.fecha === prediccion.fecha && 
+                p.local === prediccion.local && 
+                p.visitante === prediccion.visitante
+            );
+
+            if (partido && partido.marcador) {
+                const puntos = this.calcularPuntos(prediccion, partido);
+                if (!tablaPuntos[prediccion.participante]) {
+                    tablaPuntos[prediccion.participante] = 0;
+                }
+                tablaPuntos[prediccion.participante] += puntos;
+            }
+        });
+
+        return Object.entries(tablaPuntos)
+            .sort(([,a], [,b]) => b - a)
+            .map(([participante, puntos]) => ({ participante, puntos }));
     }
 }
 
