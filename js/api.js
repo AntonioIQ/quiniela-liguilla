@@ -37,21 +37,47 @@ class API {
                 action: 'parse',
                 page: 'Torneo_Apertura_2024_(México)',
                 format: 'json',
-                prop: 'text',
-                section: '13',
-                origin: '*'
+                prop: 'sections|text',
+                origin: '*',
+                formatversion: '2'
             });
-
+    
+            console.log('Intentando obtener datos de Wikipedia...');
+            console.log(`URL: ${this.WIKI_API}?${params}`);
+            
+            // Primero obtener las secciones para encontrar el ID correcto
             const response = await fetch(`${this.WIKI_API}?${params}`);
             const data = await response.json();
-            
-            if (!data.parse || !data.parse.text) {
-                throw new Error('No se encontraron datos');
+            console.log('Secciones disponibles:', data);
+    
+            // Una vez que tengamos el ID correcto de la sección, hacemos la segunda llamada
+            if (data.parse && data.parse.sections) {
+                const liguillaSectionId = data.parse.sections.find(
+                    section => section.line.toLowerCase().includes('liguilla')
+                )?.index;
+    
+                if (liguillaSectionId) {
+                    const paramsWithSection = new URLSearchParams({
+                        action: 'parse',
+                        page: 'Torneo_Apertura_2024_(México)',
+                        format: 'json',
+                        prop: 'text',
+                        section: liguillaSectionId.toString(),
+                        origin: '*'
+                    });
+    
+                    const sectionResponse = await fetch(`${this.WIKI_API}?${paramsWithSection}`);
+                    const sectionData = await sectionResponse.json();
+                    
+                    if (sectionData.parse && sectionData.parse.text) {
+                        return this.procesarTablaLiguilla(sectionData.parse.text['*']);
+                    }
+                }
             }
-
-            return this.procesarTablaLiguilla(data.parse.text['*']);
+    
+            throw new Error('No se encontró la sección de la Liguilla');
         } catch (error) {
-            console.error('Error al obtener datos de Wikipedia:', error);
+            console.error('Error detallado:', error);
             throw error;
         }
     }
