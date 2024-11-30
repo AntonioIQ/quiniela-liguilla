@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiniela Liguilla 2024</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script>
+        // Ajuste dinámico del base href
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const baseHref = isLocal ? './' : '/quiniela-liguilla/';
+        document.write(`<base href="${baseHref}">`);
+    </script>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-gray-100">
