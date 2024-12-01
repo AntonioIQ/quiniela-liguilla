@@ -1,40 +1,21 @@
+import { TOKEN } from './token.js'; // Importa el token inyectado
+
 class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
         this.REPO_OWNER = 'AntonioIQ';
         this.REPO_NAME = 'quiniela-liguilla';
-
-        // Intenta obtener el token desde las variables de entorno
-        this.accessToken = typeof process !== 'undefined' && process.env.GITHUB_TOKEN
-            ? process.env.GITHUB_TOKEN
-            : null;
-
-        // Si no está en el entorno (local), intenta usar localStorage
-        if (!this.accessToken) {
-            this.accessToken = localStorage.getItem('github_token');
-        }
+        this.accessToken = TOKEN; // Token inyectado durante el despliegue
     }
 
     async authenticateWithGithub() {
-        try {
-            if (this.accessToken) {
-                return true;
-            }
-
-            // Si no hay token, solicita al usuario que lo proporcione
-            const token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
-            if (token) {
-                this.accessToken = token;
-                localStorage.setItem('github_token', token);
-                return true;
-            }
-
-            throw new Error('No se proporcionó un token de acceso');
-        } catch (error) {
-            console.error('Error en autenticación:', error);
-            return false;
+        // El token ya está inyectado
+        if (this.accessToken) {
+            console.log('Token cargado correctamente');
+            return true;
         }
+        throw new Error('No se encontró el token');
     }
 
     async obtenerResultadosWiki() {
@@ -49,8 +30,6 @@ class API {
             });
 
             console.log('Intentando obtener datos de Wikipedia...');
-            console.log(`URL: ${this.WIKI_API}?${params}`);
-
             const response = await fetch(`${this.WIKI_API}?${params}`);
             const data = await response.json();
 

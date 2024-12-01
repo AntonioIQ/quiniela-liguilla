@@ -13,15 +13,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Build and Deploy
-      env:
-        GITHUB_TOKEN: ${{ secrets.LIGUILLA }}
+    - name: Inyectar el token secreto en el archivo de configuración
       run: |
-        echo "Usando token desde variable de entorno"
-        echo "El token está disponible como una variable de entorno: $GITHUB_TOKEN"
-        # Aquí puedes agregar comandos de build si fuera necesario
-        # npm install
-        # npm run build
+        echo "export const TOKEN = '${{ secrets.LIGUILLA }}';" > js/token.js
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
