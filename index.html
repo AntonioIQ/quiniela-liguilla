@@ -89,39 +89,40 @@
         import quiniela from './js/quiniela.js';
         import ui from './js/ui.js';
         
-        async function initApp() {
-            try {
-                // Solicitar token si no existe
-                if (!localStorage.getItem('github_token')) {
-                    const token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
-                    if (token) {
-                        localStorage.setItem('github_token', token);
-                    } else {
-                        throw new Error('Se requiere un token para funcionar');
-                    }
+        // Función para solicitar el token
+        async function getGitHubToken() {
+            let token = localStorage.getItem('github_token');
+            if (!token) {
+                token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
+                if (token) {
+                    localStorage.setItem('github_token', token);
                 }
-                
-                // Inicializar con el token guardado
-                const token = localStorage.getItem('github_token');
-                
-                // Verificar que tenemos un token
+            }
+            return token;
+        }
+    
+        // Inicializar la aplicación
+        async function init() {
+            try {
+                const token = await getGitHubToken();
                 if (!token) {
-                    throw new Error('Token no encontrado');
+                    throw new Error('Se requiere un token para funcionar');
                 }
     
-                console.log('Inicializando con configuración...');
-                await api.setCredentials(config.REPO_OWNER, config.REPO_NAME, token);
+                // Configurar la aplicación
+                config.GITHUB_TOKEN = token;
+                api.setCredentials(config.REPO_OWNER, config.REPO_NAME, token);
                 
-                // Inicializar la aplicación solo después de tener el token
+                // Inicializar quiniela
                 await quiniela.inicializar();
             } catch (error) {
-                console.error('Error al inicializar:', error);
-                alert('Error al inicializar la aplicación. Por favor, recarga la página.');
+                console.error('Error:', error);
+                alert('Error al inicializar. Por favor, verifica tu token de GitHub.');
+                localStorage.removeItem('github_token'); // Borrar token inválido
             }
         }
     
-        // Iniciar la aplicación
-        initApp();
+        init();
     </script>
 </body>
 </html>
