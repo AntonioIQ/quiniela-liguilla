@@ -2,35 +2,37 @@ import api from './api.js';
 
 class Quiniela {
     constructor() {
-        this.partidos = [];
+        this.predicciones = [];
     }
 
     async inicializar() {
         try {
-            console.log('Inicializando Quiniela...');
-            this.partidos = await api.obtenerResultadosWiki();
+            console.log("Intentando obtener datos de Wikipedia...");
+            const resultados = await api.obtenerResultadosWiki();
+            console.log("Resultados obtenidos:", resultados);
+            // Aquí puedes parsear y utilizar los datos según tus necesidades
         } catch (error) {
-            console.error('Error al inicializar quiniela:', error);
-            throw error;
+            console.error("Error al inicializar la quiniela:", error);
         }
     }
 
-    obtenerFechasDisponibles() {
-        return [...new Set(this.partidos.map(partido => partido.fecha))];
+    async cargarPredicciones() {
+        try {
+            const predicciones = await api.obtenerPredicciones();
+            this.predicciones = predicciones || [];
+        } catch (error) {
+            console.error("Error al cargar predicciones:", error);
+        }
     }
 
-    obtenerEquiposLocales(fecha) {
-        return this.partidos
-            .filter(partido => partido.fecha === fecha)
-            .map(partido => partido.local);
-    }
-
-    obtenerEquiposVisitantes(fecha, local) {
-        return this.partidos
-            .filter(partido => partido.fecha === fecha && partido.local === local)
-            .map(partido => partido.visitante);
+    async guardarPrediccion(prediccion) {
+        try {
+            await api.guardarPrediccion(prediccion);
+            this.predicciones.push(prediccion);
+        } catch (error) {
+            console.error("Error al guardar predicción:", error);
+        }
     }
 }
 
-const quiniela = new Quiniela();
-export default quiniela;
+export default new Quiniela();
