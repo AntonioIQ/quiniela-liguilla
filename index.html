@@ -89,20 +89,39 @@
         import quiniela from './js/quiniela.js';
         import ui from './js/ui.js';
         
-        // Solicitar token si no existe
-        if (!localStorage.getItem('github_token')) {
-            const token = prompt('Ingresa tu token de GitHub:');
-            if (token) {
-                localStorage.setItem('github_token', token);
+        async function initApp() {
+            try {
+                // Solicitar token si no existe
+                if (!localStorage.getItem('github_token')) {
+                    const token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
+                    if (token) {
+                        localStorage.setItem('github_token', token);
+                    } else {
+                        throw new Error('Se requiere un token para funcionar');
+                    }
+                }
+                
+                // Inicializar con el token guardado
+                const token = localStorage.getItem('github_token');
+                
+                // Verificar que tenemos un token
+                if (!token) {
+                    throw new Error('Token no encontrado');
+                }
+    
+                console.log('Inicializando con configuración...');
+                await api.setCredentials(config.REPO_OWNER, config.REPO_NAME, token);
+                
+                // Inicializar la aplicación solo después de tener el token
+                await quiniela.inicializar();
+            } catch (error) {
+                console.error('Error al inicializar:', error);
+                alert('Error al inicializar la aplicación. Por favor, recarga la página.');
             }
         }
-        
-        // Inicializar con el token guardado
-        const token = localStorage.getItem('github_token');
-        config.GITHUB_TOKEN = token;
-        
-        console.log('Inicializando con configuración...');
-        api.setCredentials(config.REPO_OWNER, config.REPO_NAME, token);
+    
+        // Iniciar la aplicación
+        initApp();
     </script>
 </body>
 </html>
