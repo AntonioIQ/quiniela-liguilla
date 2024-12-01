@@ -90,13 +90,20 @@
     </div>
 
     <script type="module">
-        import config from './js/config.js';
-        import api from './js/api.js';
-        import quiniela from './js/quiniela.js';
-        import ui from './js/ui.js';
-        
-        // Inicializar la aplicación
-        api.setCredentials(config.REPO_OWNER, config.REPO_NAME, config.LIGUILLA);
+        let configPath = './js/config.js';
+        if (location.hostname === 'antonioiq.github.io') {
+            configPath = './js/config.prod.js';
+        }
+    
+        import(configPath).then(({ default: config }) => {
+            import('./js/api.js').then(({ default: api }) => {
+                import('./js/quiniela.js').then(({ default: quiniela }) => {
+                    import('./js/ui.js').then(({ default: ui }) => {
+                        api.setCredentials(config.REPO_OWNER, config.REPO_NAME);
+                    });
+                });
+            });
+        });
     </script>
 </body>
 </html>
