@@ -3,28 +3,34 @@ class API {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
         // Inicializar con valores del localStorage si existen
-        this.REPO_OWNER = localStorage.getItem('repo_owner') || '';
-        this.REPO_NAME = localStorage.getItem('repo_name') || '';
-        this.accessToken = localStorage.getItem('github_token');
+        this.REPO_OWNER = localStorage.getItem('repo_owner') || 'AntonioIQ';
+        this.REPO_NAME = localStorage.getItem('repo_name') || 'quiniela-liguilla';
+        this.accessToken = localStorage.getItem('github_token') || null;
+
+        // En producción, cargamos el token desde el archivo de configuración inyectado
+        if (location.hostname === 'antonioiq.github.io' && !this.accessToken) {
+            this.accessToken = 'TOKEN_INYECTADO_POR_SECRETOS'; // Esto lo llenará GitHub Pages con el token secreto
+        }
     }
 
     async authenticateWithGithub() {
         try {
             // Si ya tenemos un token guardado, lo usamos
-            const savedToken = localStorage.getItem('github_token');
+            const savedToken = this.accessToken || localStorage.getItem('github_token');
             if (savedToken) {
                 this.accessToken = savedToken;
                 return true;
             }
-            
-            // Si no, pedimos uno nuevo
-            const token = prompt('Por favor ingresa tu GitHub Personal Access Token:');
+
+            // Si no, pedimos uno nuevo al usuario
+            const token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
             if (token) {
                 this.accessToken = token;
                 localStorage.setItem('github_token', token);
                 return true;
             }
-            return false;
+
+            throw new Error('No se proporcionó un token de acceso');
         } catch (error) {
             console.error('Error en autenticación:', error);
             return false;
@@ -39,23 +45,20 @@ class API {
                 format: 'json',
                 prop: 'sections|text',
                 origin: '*',
-                formatversion: '2'
+                formatversion: '2',
             });
-    
+
             console.log('Intentando obtener datos de Wikipedia...');
             console.log(`URL: ${this.WIKI_API}?${params}`);
-            
-            // Primero obtener las secciones para encontrar el ID correcto
+
             const response = await fetch(`${this.WIKI_API}?${params}`);
             const data = await response.json();
-            console.log('Secciones disponibles:', data);
-    
-            // Una vez que tengamos el ID correcto de la sección, hacemos la segunda llamada
+
             if (data.parse && data.parse.sections) {
-                const liguillaSectionId = data.parse.sections.find(
-                    section => section.line.toLowerCase().includes('liguilla')
+                const liguillaSectionId = data.parse.sections.find((section) =>
+                    section.line.toLowerCase().includes('liguilla')
                 )?.index;
-    
+
                 if (liguillaSectionId) {
                     const paramsWithSection = new URLSearchParams({
                         action: 'parse',
@@ -63,18 +66,18 @@ class API {
                         format: 'json',
                         prop: 'text',
                         section: liguillaSectionId.toString(),
-                        origin: '*'
+                        origin: '*',
                     });
-    
+
                     const sectionResponse = await fetch(`${this.WIKI_API}?${paramsWithSection}`);
                     const sectionData = await sectionResponse.json();
-                    
+
                     if (sectionData.parse && sectionData.parse.text) {
                         return this.procesarTablaLiguilla(sectionData.parse.text['*']);
                     }
                 }
             }
-    
+
             throw new Error('No se encontró la sección de la Liguilla');
         } catch (error) {
             console.error('Error detallado:', error);
@@ -89,19 +92,19 @@ class API {
         const partidos = [];
         const fechasValidas = ['27 de noviembre', '28 de noviembre', '30 de noviembre', '1 de diciembre'];
 
-        tables.forEach(table => {
+        tables.forEach((table) => {
             const rows = table.querySelectorAll('tr');
-            rows.forEach(row => {
+            rows.forEach((row) => {
                 const cells = row.querySelectorAll('th, td');
                 if (cells.length > 1) {
                     const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
-                    if (fechasValidas.some(f => fecha.includes(f))) {
+                    if (fechasValidas.some((f) => fecha.includes(f))) {
                         const partido = {
                             fecha: fecha,
                             local: cells[1]?.textContent?.trim().toLowerCase() || '',
                             marcador: cells[2]?.textContent?.trim().split('(')[0].trim() || '',
                             visitante: cells[3]?.textContent?.trim().toLowerCase() || '',
-                            estadio: cells[4]?.textContent?.trim().split(',')[0] || ''
+                            estadio: cells[4]?.textContent?.trim().split(',')[0] || '',
                         };
                         partidos.push(partido);
                     }
@@ -113,16 +116,6 @@ class API {
         return partidos;
     }
 
-    setCredentials(owner, repo, token) {
-        this.REPO_OWNER = owner;
-        this.REPO_NAME = repo;
-        this.accessToken = token;
-        
-        localStorage.setItem('repo_owner', owner);
-        localStorage.setItem('repo_name', repo);
-        localStorage.setItem('github_token', token);
-    }
-
     async guardarPrediccion(prediccion) {
         if (!this.accessToken) {
             throw new Error('No hay token de acceso');
@@ -132,14 +125,14 @@ class API {
             const response = await fetch(`${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `token ${this.accessToken}`,
+                    Authorization: `token ${this.accessToken}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     title: `Predicción: ${prediccion.local} vs ${prediccion.visitante}`,
                     body: JSON.stringify(prediccion),
-                    labels: ['prediccion']
-                })
+                    labels: ['prediccion'],
+                }),
             });
 
             if (!response.ok) {
@@ -160,49 +153,22 @@ class API {
 
         try {
             const response = await fetch(
-                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion`, {
-                headers: {
-                    'Authorization': `token ${this.accessToken}`
+                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion`,
+                {
+                    headers: {
+                        Authorization: `token ${this.accessToken}`,
+                    },
                 }
-            });
+            );
 
             if (!response.ok) {
                 throw new Error('Error al obtener predicciones');
             }
 
             const issues = await response.json();
-            return issues.map(issue => JSON.parse(issue.body));
+            return issues.map((issue) => JSON.parse(issue.body));
         } catch (error) {
             console.error('Error al obtener predicciones:', error);
-            throw error;
-        }
-    }
-
-    async eliminarPrediccion(issueNumber) {
-        if (!this.accessToken) {
-            throw new Error('No hay token de acceso');
-        }
-
-        try {
-            const response = await fetch(
-                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues/${issueNumber}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `token ${this.accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    state: 'closed'
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Error al eliminar la predicción');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Error al eliminar predicción:', error);
             throw error;
         }
     }
