@@ -12,7 +12,7 @@ class API {
                 {
                     method: 'POST',
                     headers: {
-                        Authorization: `Bearer ${GITHUB_TOKEN}`, // Token gestionado por GitHub Actions
+                        Authorization: `Bearer ${GITHUB_TOKEN}`,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
@@ -22,12 +22,13 @@ class API {
                 }
             );
 
-            if (!response.ok) throw new Error('Error al guardar la predicción');
+            if (!response.ok) {
+                throw new Error('Error al guardar predicción');
+            }
 
-            console.log('Predicción enviada al flujo correctamente.');
+            console.log('Predicción enviada correctamente.');
         } catch (error) {
-            console.error(error);
-            throw error;
+            console.error('Error al guardar predicción:', error);
         }
     }
 }
