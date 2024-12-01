@@ -7,9 +7,8 @@ class API {
     }
 
     async authenticateWithGithub() {
-        // El flujo de trabajo de GitHub Actions se encargará de gestionar el token
         console.log('Autenticación gestionada mediante GitHub Actions.');
-        return true; // El cliente no requiere token directamente
+        return true;
     }
 
     async obtenerResultadosWiki() {
@@ -91,19 +90,18 @@ class API {
 
     async guardarPrediccion(prediccion) {
         try {
-            // Envía los datos al flujo de trabajo de GitHub Actions
             const response = await fetch(
                 `https://api.github.com/repos/${this.REPO_OWNER}/${this.REPO_NAME}/actions/workflows/guardar-prediccion.yml/dispatches`,
                 {
                     method: 'POST',
                     headers: {
-                        Authorization: `Bearer ${GITHUB_TOKEN}`, // Token gestionado en el entorno de Actions
+                        Authorization: `Bearer ghp_fake_token_for_local_dev`, // Solo para desarrollo local
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
                         ref: 'main', // Rama principal
                         inputs: {
-                            data: JSON.stringify(prediccion), // Datos de la predicción
+                            data: JSON.stringify(prediccion),
                         },
                     }),
                 }
@@ -119,11 +117,6 @@ class API {
             console.error('Error al guardar predicción:', error);
             throw error;
         }
-    }
-
-    async obtenerPredicciones() {
-        // Este método deberá adaptarse si decides implementar una función similar en el backend
-        throw new Error('No implementado para GitHub Actions');
     }
 }
 

@@ -15,7 +15,7 @@ jobs:
     - name: Decodificar datos
       run: echo "${{ github.event.inputs.data }}" > prediccion.json
 
-    - name: Guardar Predicción en GitHub
+    - name: Crear una nueva predicción en GitHub
       env:
         GITHUB_TOKEN: ${{ secrets.LIGUILLA }}
       run: |
