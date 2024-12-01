@@ -5,21 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiniela Liguilla 2024</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-4xl mx-auto">
             <h1 class="text-3xl font-bold text-center mb-8">Quiniela Liguilla 2024</h1>
-
-            <!-- Configuración del Token -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-                <h2 class="text-xl font-bold mb-4">Configurar Token</h2>
-                <label class="block text-sm font-medium text-gray-700">Token de GitHub</label>
-                <input type="password" id="token-input"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                       placeholder="Ingresa tu token">
-            </div>
 
             <!-- Formulario de Pronóstico -->
             <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
@@ -93,27 +84,13 @@
     </div>
 
     <script type="module">
+        import config from './js/config.js';
         import api from './js/api.js';
         import quiniela from './js/quiniela.js';
         import ui from './js/ui.js';
-
-        // Configurar token desde el input
-        const storedToken = localStorage.getItem('github_token');
-        if (storedToken) {
-            api.setToken(storedToken);
-        }
-
-        document.getElementById('token-input').addEventListener('change', (event) => {
-            const token = event.target.value.trim();
-            if (token) {
-                localStorage.setItem('github_token', token);
-                api.setToken(token);
-                console.log('Token configurado y guardado en localStorage');
-            }
-        });
-
+        
         // Inicializar la aplicación
-        new ui();
+        api.setCredentials(config.REPO_OWNER, config.REPO_NAME, config.GITHUB_TOKEN);
     </script>
 </body>
 </html>
