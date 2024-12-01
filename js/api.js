@@ -1,21 +1,15 @@
-import { TOKEN } from './token.js'; // Importa el token inyectado
-
 class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
         this.REPO_OWNER = 'AntonioIQ';
         this.REPO_NAME = 'quiniela-liguilla';
-        this.accessToken = TOKEN; // Token inyectado durante el despliegue
     }
 
     async authenticateWithGithub() {
-        // El token ya está inyectado
-        if (this.accessToken) {
-            console.log('Token cargado correctamente');
-            return true;
-        }
-        throw new Error('No se encontró el token');
+        // El flujo de trabajo de GitHub Actions se encargará de gestionar el token
+        console.log('Autenticación gestionada mediante GitHub Actions.');
+        return true; // El cliente no requiere token directamente
     }
 
     async obtenerResultadosWiki() {
@@ -96,28 +90,30 @@ class API {
     }
 
     async guardarPrediccion(prediccion) {
-        if (!this.accessToken) {
-            throw new Error('No hay token de acceso');
-        }
-
         try {
-            const response = await fetch(`${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `token ${this.accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title: `Predicción: ${prediccion.local} vs ${prediccion.visitante}`,
-                    body: JSON.stringify(prediccion),
-                    labels: ['prediccion'],
-                }),
-            });
+            // Envía los datos al flujo de trabajo de GitHub Actions
+            const response = await fetch(
+                `https://api.github.com/repos/${this.REPO_OWNER}/${this.REPO_NAME}/actions/workflows/guardar-prediccion.yml/dispatches`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${GITHUB_TOKEN}`, // Token gestionado en el entorno de Actions
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ref: 'main', // Rama principal
+                        inputs: {
+                            data: JSON.stringify(prediccion), // Datos de la predicción
+                        },
+                    }),
+                }
+            );
 
             if (!response.ok) {
-                throw new Error('Error al guardar la predicción');
+                throw new Error('Error al guardar la predicción mediante Actions');
             }
 
+            console.log('Predicción enviada al flujo de trabajo correctamente.');
             return await response.json();
         } catch (error) {
             console.error('Error al guardar predicción:', error);
@@ -126,30 +122,8 @@ class API {
     }
 
     async obtenerPredicciones() {
-        if (!this.accessToken) {
-            throw new Error('No hay token de acceso');
-        }
-
-        try {
-            const response = await fetch(
-                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion`,
-                {
-                    headers: {
-                        Authorization: `token ${this.accessToken}`,
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error('Error al obtener predicciones');
-            }
-
-            const issues = await response.json();
-            return issues.map((issue) => JSON.parse(issue.body));
-        } catch (error) {
-            console.error('Error al obtener predicciones:', error);
-            throw error;
-        }
+        // Este método deberá adaptarse si decides implementar una función similar en el backend
+        throw new Error('No implementado para GitHub Actions');
     }
 }
 

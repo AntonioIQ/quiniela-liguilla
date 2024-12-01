@@ -1,0 +1,27 @@
+name: Guardar Predicción
+
+on:
+  workflow_dispatch:
+    inputs:
+      data:
+        description: 'Datos de la predicción (en JSON)'
+        required: true
+
+jobs:
+  guardar-prediccion:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Decodificar datos
+      run: echo "${{ github.event.inputs.data }}" > prediccion.json
+
+    - name: Guardar Predicción en GitHub
+      env:
+        GITHUB_TOKEN: ${{ secrets.LIGUILLA }}
+      run: |
+        data=$(cat prediccion.json)
+        curl -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$data" \
+          "https://api.github.com/repos/AntonioIQ/quiniela-liguilla/issues"
