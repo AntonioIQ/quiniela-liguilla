@@ -2,27 +2,27 @@ class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
-        // Inicializar con valores del localStorage si existen
-        this.REPO_OWNER = localStorage.getItem('repo_owner') || 'AntonioIQ';
-        this.REPO_NAME = localStorage.getItem('repo_name') || 'quiniela-liguilla';
-        this.accessToken = localStorage.getItem('github_token') || null;
+        this.REPO_OWNER = 'AntonioIQ';
+        this.REPO_NAME = 'quiniela-liguilla';
 
-        // En producción, cargamos el token desde el archivo de configuración inyectado
-        if (location.hostname === 'antonioiq.github.io' && !this.accessToken) {
-            this.accessToken = 'TOKEN_INYECTADO_POR_SECRETOS'; // Esto lo llenará GitHub Pages con el token secreto
+        // Intenta obtener el token desde las variables de entorno
+        this.accessToken = typeof process !== 'undefined' && process.env.GITHUB_TOKEN
+            ? process.env.GITHUB_TOKEN
+            : null;
+
+        // Si no está en el entorno (local), intenta usar localStorage
+        if (!this.accessToken) {
+            this.accessToken = localStorage.getItem('github_token');
         }
     }
 
     async authenticateWithGithub() {
         try {
-            // Si ya tenemos un token guardado, lo usamos
-            const savedToken = this.accessToken || localStorage.getItem('github_token');
-            if (savedToken) {
-                this.accessToken = savedToken;
+            if (this.accessToken) {
                 return true;
             }
 
-            // Si no, pedimos uno nuevo al usuario
+            // Si no hay token, solicita al usuario que lo proporcione
             const token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
             if (token) {
                 this.accessToken = token;
