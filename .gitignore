@@ -1,0 +1,6 @@
+# Archivos a ignorar
+.env
+.env.local
+.DS_Store
+node_modules/
+js/config.js

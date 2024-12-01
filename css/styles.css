@@ -1,0 +1,36 @@
+/* Estilos adicionales personalizados */
+.hidden {
+    display: none !important;
+}
+
+/* Animaciones para las notificaciones */
+@keyframes slideIn {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.notification {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Estilos para inputs type number */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Estilos para hover en la tabla */
+tbody tr:hover {
+    background-color: rgba(243, 244, 246, 0.5);
+}
