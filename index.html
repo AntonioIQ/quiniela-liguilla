@@ -89,20 +89,20 @@
         import quiniela from './js/quiniela.js';
         import ui from './js/ui.js';
         
-        // Cargar token desde localStorage si existe
-        const token = localStorage.getItem('github_token');
-        if (!token) {
-            const newToken = prompt('Por favor ingresa tu GitHub Personal Access Token:');
-            if (newToken) {
-                localStorage.setItem('github_token', newToken);
-                config.GITHUB_TOKEN = newToken;
+        // Solicitar token si no existe
+        if (!localStorage.getItem('github_token')) {
+            const token = prompt('Ingresa tu token de GitHub:');
+            if (token) {
+                localStorage.setItem('github_token', token);
             }
-        } else {
-            config.GITHUB_TOKEN = token;
         }
         
-        api.setCredentials(config.REPO_OWNER, config.REPO_NAME, config.GITHUB_TOKEN);
+        // Inicializar con el token guardado
+        const token = localStorage.getItem('github_token');
+        config.GITHUB_TOKEN = token;
+        
+        console.log('Inicializando con configuración...');
+        api.setCredentials(config.REPO_OWNER, config.REPO_NAME, token);
     </script>
-
 </body>
 </html>
