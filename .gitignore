@@ -1,6 +1,7 @@
-# Configuración
+# Configuración local
 js/config.js
-js/config.prod.js
+
+# Otros archivos
 .env
 .DS_Store
 node_modules/

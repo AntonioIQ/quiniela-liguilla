@@ -84,13 +84,23 @@
     </div>
 
     <script type="module">
-        import config from './js/config.js';
+        import config from './js/config.prod.js';
         import api from './js/api.js';
         import quiniela from './js/quiniela.js';
         import ui from './js/ui.js';
         
-        // Asegurarnos que tenemos las credenciales
-        console.log('Inicializando con configuración...');
+        // Cargar token desde localStorage si existe
+        const token = localStorage.getItem('github_token');
+        if (!token) {
+            const newToken = prompt('Por favor ingresa tu GitHub Personal Access Token:');
+            if (newToken) {
+                localStorage.setItem('github_token', newToken);
+                config.GITHUB_TOKEN = newToken;
+            }
+        } else {
+            config.GITHUB_TOKEN = token;
+        }
+        
         api.setCredentials(config.REPO_OWNER, config.REPO_NAME, config.GITHUB_TOKEN);
     </script>
 </body>
