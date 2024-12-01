@@ -3,22 +3,18 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main
+      - main  # Ejecuta este flujo cuando se haga un push en la rama 'main'
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-
-    - name: Build project
-      run: |
-        npm install
-        npm run build
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.LIGUILLA }}
-        publish_dir: ./dist
+        publish_dir: .  # Publica el contenido directamente desde la raíz del repositorio
