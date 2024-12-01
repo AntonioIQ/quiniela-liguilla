@@ -1,21 +1,6 @@
-# Archivos a ignorar
+# Configuración
+js/config.js
+js/config.prod.js
 .env
-.env.local
 .DS_Store
 node_modules/
-js/config.js
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
