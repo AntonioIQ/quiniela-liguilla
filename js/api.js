@@ -4,37 +4,11 @@ class API {
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
         this.REPO_OWNER = 'AntonioIQ';
         this.REPO_NAME = 'quiniela-liguilla';
-
-        // Intenta obtener el token desde las variables de entorno
-        this.accessToken = typeof process !== 'undefined' && process.env.GITHUB_TOKEN
-            ? process.env.GITHUB_TOKEN
-            : null;
-
-        // Si no está en el entorno (local), intenta usar localStorage
-        if (!this.accessToken) {
-            this.accessToken = localStorage.getItem('github_token');
-        }
     }
 
     async authenticateWithGithub() {
-        try {
-            if (this.accessToken) {
-                return true;
-            }
-
-            // Si no hay token, solicita al usuario que lo proporcione
-            const token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
-            if (token) {
-                this.accessToken = token;
-                localStorage.setItem('github_token', token);
-                return true;
-            }
-
-            throw new Error('No se proporcionó un token de acceso');
-        } catch (error) {
-            console.error('Error en autenticación:', error);
-            return false;
-        }
+        console.log('Autenticación gestionada mediante GitHub Actions.');
+        return true;
     }
 
     async obtenerResultadosWiki() {
@@ -49,8 +23,6 @@ class API {
             });
 
             console.log('Intentando obtener datos de Wikipedia...');
-            console.log(`URL: ${this.WIKI_API}?${params}`);
-
             const response = await fetch(`${this.WIKI_API}?${params}`);
             const data = await response.json();
 
@@ -117,58 +89,32 @@ class API {
     }
 
     async guardarPrediccion(prediccion) {
-        if (!this.accessToken) {
-            throw new Error('No hay token de acceso');
-        }
-
-        try {
-            const response = await fetch(`${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `token ${this.accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title: `Predicción: ${prediccion.local} vs ${prediccion.visitante}`,
-                    body: JSON.stringify(prediccion),
-                    labels: ['prediccion'],
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Error al guardar la predicción');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Error al guardar predicción:', error);
-            throw error;
-        }
-    }
-
-    async obtenerPredicciones() {
-        if (!this.accessToken) {
-            throw new Error('No hay token de acceso');
-        }
-
         try {
             const response = await fetch(
-                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion`,
+                `https://api.github.com/repos/${this.REPO_OWNER}/${this.REPO_NAME}/actions/workflows/guardar-prediccion.yml/dispatches`,
                 {
+                    method: 'POST',
                     headers: {
-                        Authorization: `token ${this.accessToken}`,
+                        Authorization: `Bearer ghp_fake_token_for_local_dev`, // Solo para desarrollo local
+                        'Content-Type': 'application/json',
                     },
+                    body: JSON.stringify({
+                        ref: 'main', // Rama principal
+                        inputs: {
+                            data: JSON.stringify(prediccion),
+                        },
+                    }),
                 }
             );
 
             if (!response.ok) {
-                throw new Error('Error al obtener predicciones');
+                throw new Error('Error al guardar la predicción mediante Actions');
             }
 
-            const issues = await response.json();
-            return issues.map((issue) => JSON.parse(issue.body));
+            console.log('Predicción enviada al flujo de trabajo correctamente.');
+            return await response.json();
         } catch (error) {
-            console.error('Error al obtener predicciones:', error);
+            console.error('Error al guardar predicción:', error);
             throw error;
         }
     }
