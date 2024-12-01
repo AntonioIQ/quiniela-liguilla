@@ -12,16 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Decodificar datos
-      run: echo "${{ github.event.inputs.data }}" > prediccion.json
-
-    - name: Crear una nueva predicción en GitHub
+    - name: Configurar credenciales
       env:
         GITHUB_TOKEN: ${{ secrets.LIGUILLA }}
+
+    - name: Crear una predicción
       run: |
-        data=$(cat prediccion.json)
-        curl -X POST \
-          -H "Authorization: token $GITHUB_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "$data" \
-          "https://api.github.com/repos/AntonioIQ/quiniela-liguilla/issues"
+        echo "Guardando predicción en el repositorio..."
