@@ -17,19 +17,42 @@ class UI {
         this.resultadosTable = document.getElementById('resultados-oficiales');
         this.puntuacionTable = document.getElementById('tabla-puntuacion');
 
-        // Inicializar la aplicación
-        this.inicializarUI();
+        // Iniciar la aplicación después de que todo esté cargado
+        window.addEventListener('load', () => this.inicializar());
     }
 
-    async inicializarUI() {
+    async inicializar() {
         try {
+            console.log('Iniciando aplicación...');
+            await quiniela.inicializar();
             await this.inicializarEventos();
-            await this.inicializarQuiniela();
-            // Actualizar cada 5 minutos
-            setInterval(() => this.actualizarTodo(), 300000);
+            await this.cargarDatos();
+            console.log('Aplicación inicializada correctamente');
         } catch (error) {
-            console.error('Error al inicializar UI:', error);
+            console.error('Error al inicializar:', error);
             this.mostrarError('Error al inicializar la aplicación');
+        }
+    }
+
+    async cargarDatos() {
+        try {
+            // Cargar fechas disponibles
+            const fechas = quiniela.obtenerFechasDisponibles();
+            this.fechaSelect.innerHTML = '<option value="">Selecciona una fecha</option>';
+            fechas.forEach(fecha => {
+                const option = document.createElement('option');
+                option.value = fecha;
+                option.textContent = this.formatearFecha(fecha);
+                this.fechaSelect.appendChild(option);
+            });
+
+            // Actualizar tablas
+            await this.actualizarTablaResultados();
+            await this.actualizarTablaPuntuacion();
+            await this.actualizarTablaPredicciones();
+        } catch (error) {
+            console.error('Error al cargar datos:', error);
+            this.mostrarError('Error al cargar los datos');
         }
     }
 
