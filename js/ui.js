@@ -17,17 +17,27 @@ class UI {
         this.resultadosTable = document.getElementById('resultados-oficiales');
         this.puntuacionTable = document.getElementById('tabla-puntuacion');
 
-        this.inicializarEventos();
-        this.inicializarQuiniela();
+        // Inicializar la aplicación
+        this.inicializarUI();
+    }
+
+    async inicializarUI() {
+        try {
+            await this.inicializarEventos();
+            await this.inicializarQuiniela();
+            // Actualizar cada 5 minutos
+            setInterval(() => this.actualizarTodo(), 300000);
+        } catch (error) {
+            console.error('Error al inicializar UI:', error);
+            this.mostrarError('Error al inicializar la aplicación');
+        }
     }
 
     async inicializarEventos() {
+        // Eventos de selección
         this.fechaSelect.addEventListener('change', () => this.actualizarEquiposLocales());
         this.localSelect.addEventListener('change', () => this.actualizarEquiposVisitantes());
         this.addPredictionBtn.addEventListener('click', () => this.agregarPrediccion());
-
-        // Actualizar cada minuto
-        setInterval(() => this.actualizarResultadosYPuntuaciones(), 60000);
     }
 
     async inicializarQuiniela() {
@@ -35,28 +45,78 @@ class UI {
             this.mostrarCargando();
             const success = await quiniela.inicializar();
             if (success) {
-                this.cargarFechas();
-                await this.actualizarResultadosYPuntuaciones();
+                await this.cargarFechasDisponibles();
+                await this.actualizarTodo();
             }
         } catch (error) {
+            console.error('Error al inicializar quiniela:', error);
             this.mostrarError('Error al inicializar la quiniela');
-            console.error(error);
         } finally {
             this.ocultarCargando();
         }
     }
 
-    async actualizarResultadosYPuntuaciones() {
-        await this.actualizarTablaResultados();
-        await this.actualizarTablaPuntuacion();
-        await this.actualizarTablaPredicciones();
+    async actualizarTodo() {
+        this.mostrarCargando();
+        try {
+            await Promise.all([
+                this.actualizarTablaResultados(),
+                this.actualizarTablaPuntuacion(),
+                this.actualizarTablaPredicciones()
+            ]);
+        } catch (error) {
+            console.error('Error al actualizar datos:', error);
+        } finally {
+            this.ocultarCargando();
+        }
+    }
+
+    async cargarFechasDisponibles() {
+        const fechas = quiniela.obtenerFechasDisponibles();
+        this.fechaSelect.innerHTML = '<option value="">Selecciona una fecha</option>';
+        fechas.forEach(fecha => {
+            const option = document.createElement('option');
+            option.value = fecha;
+            option.textContent = this.formatearFecha(fecha);
+            this.fechaSelect.appendChild(option);
+        });
+    }
+
+    actualizarEquiposLocales() {
+        const fecha = this.fechaSelect.value;
+        const equipos = quiniela.obtenerEquiposLocales(fecha);
+        
+        this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
+        equipos.forEach(equipo => {
+            const option = document.createElement('option');
+            option.value = equipo;
+            option.textContent = this.capitalizarEquipo(equipo);
+            this.localSelect.appendChild(option);
+        });
+
+        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
+    }
+
+    actualizarEquiposVisitantes() {
+        const fecha = this.fechaSelect.value;
+        const local = this.localSelect.value;
+        const equipos = quiniela.obtenerEquiposVisitantes(fecha, local);
+        
+        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
+        equipos.forEach(equipo => {
+            const option = document.createElement('option');
+            option.value = equipo;
+            option.textContent = this.capitalizarEquipo(equipo);
+            this.visitanteSelect.appendChild(option);
+        });
     }
 
     async actualizarTablaResultados() {
         try {
             const resultados = await quiniela.obtenerResultadosActuales();
-            this.resultadosTable.innerHTML = '';
+            if (!resultados) return;
 
+            this.resultadosTable.innerHTML = '';
             resultados.forEach(resultado => {
                 const row = document.createElement('tr');
                 const estado = this.calcularEstadoPartido(resultado.fecha);
@@ -76,15 +136,16 @@ class UI {
                 this.resultadosTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar resultados:', error);
+            console.error('Error al actualizar tabla de resultados:', error);
         }
     }
 
     async actualizarTablaPuntuacion() {
         try {
             const puntuaciones = await quiniela.calcularPuntuaciones();
-            this.puntuacionTable.innerHTML = '';
+            if (!puntuaciones) return;
 
+            this.puntuacionTable.innerHTML = '';
             puntuaciones.sort((a, b) => b.puntosTotales - a.puntosTotales)
                        .forEach((puntuacion, index) => {
                 const row = document.createElement('tr');
@@ -98,15 +159,16 @@ class UI {
                 this.puntuacionTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar puntuaciones:', error);
+            console.error('Error al actualizar tabla de puntuación:', error);
         }
     }
 
     async actualizarTablaPredicciones() {
         try {
             const predicciones = await quiniela.cargarPredicciones();
-            this.prediccionesTable.innerHTML = '';
+            if (!predicciones) return;
 
+            this.prediccionesTable.innerHTML = '';
             predicciones.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                        .forEach(prediccion => {
                 const puntos = quiniela.calcularPuntosPredicion(prediccion);
@@ -128,7 +190,34 @@ class UI {
                 this.prediccionesTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar predicciones:', error);
+            console.error('Error al actualizar tabla de predicciones:', error);
+        }
+    }
+
+    async agregarPrediccion() {
+        try {
+            const participante = this.participanteInput.value.trim();
+            if (!participante) {
+                this.mostrarError('Por favor ingresa el nombre del participante');
+                return;
+            }
+
+            const prediccion = {
+                participante: participante,
+                fecha: this.fechaSelect.value,
+                local: this.localSelect.value,
+                visitante: this.visitanteSelect.value,
+                golesLocal: parseInt(this.golesLocalInput.value),
+                golesVisitante: parseInt(this.golesVisitanteInput.value),
+                timestamp: new Date().toISOString()
+            };
+
+            await quiniela.guardarPrediccion(prediccion);
+            await this.actualizarTodo();
+            this.limpiarFormulario();
+            this.mostrarExito('Pronóstico guardado correctamente');
+        } catch (error) {
+            this.mostrarError(error.message);
         }
     }
 
@@ -159,14 +248,21 @@ class UI {
         }
     }
 
-    // ... resto de métodos existentes (cargarFechas, actualizarEquiposLocales, etc.) ...
-
     formatearFecha(fecha) {
         return fecha.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 
     capitalizarEquipo(equipo) {
         return equipo.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+
+    limpiarFormulario() {
+        this.participanteInput.value = '';
+        this.fechaSelect.value = '';
+        this.localSelect.value = '';
+        this.visitanteSelect.value = '';
+        this.golesLocalInput.value = '0';
+        this.golesVisitanteInput.value = '0';
     }
 
     mostrarCargando() {
