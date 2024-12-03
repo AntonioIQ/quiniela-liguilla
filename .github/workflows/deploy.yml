@@ -1,3 +1,4 @@
+cat > .github/workflows/deploy.yml << 'EOL'
 name: Deploy to GitHub Pages
 
 on:
@@ -6,15 +7,16 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.LIGUILLA }}
-        publish_dir: .
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+EOL
