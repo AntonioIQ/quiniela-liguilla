@@ -61,7 +61,47 @@
                 </div>
             </div>
 
-            <!-- Tabla de Predicciones -->
+            <!-- Resultados Oficiales -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <h2 class="text-xl font-bold mb-4">Resultados Oficiales</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Marcador</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitante</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultados-oficiales" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tabla de Puntuación -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <h2 class="text-xl font-bold mb-4">Tabla de Puntuación</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posición</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participante</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Puntos Totales</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aciertos Exactos</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Solo Resultado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-puntuacion" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pronósticos Registrados -->
             <div class="bg-white rounded-lg shadow-lg p-6">
                 <h2 class="text-xl font-bold mb-4">Pronósticos Registrados</h2>
                 <div class="overflow-x-auto">
@@ -71,8 +111,9 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participante</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marcador</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Marcador</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitante</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Puntos</th>
                             </tr>
                         </thead>
                         <tbody id="predicciones" class="bg-white divide-y divide-gray-200">
@@ -84,13 +125,25 @@
     </div>
 
     <script type="module">
-        import config from './js/config.js';
+        import config from './js/config.prod.js';
         import api from './js/api.js';
         import quiniela from './js/quiniela.js';
         import ui from './js/ui.js';
         
-        // Inicializar la aplicación
-        api.setCredentials(config.REPO_OWNER, config.REPO_NAME, config.GITHUB_TOKEN);
+        // Solicitar token si no existe
+        if (!localStorage.getItem('github_token')) {
+            const token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
+            if (token) {
+                localStorage.setItem('github_token', token);
+            }
+        }
+        
+        // Inicializar con el token guardado
+        const token = localStorage.getItem('github_token');
+        config.GITHUB_TOKEN = token;
+        
+        console.log('Inicializando con configuración...');
+        api.setCredentials(config.REPO_OWNER, config.REPO_NAME, token);
     </script>
 </body>
 </html>
