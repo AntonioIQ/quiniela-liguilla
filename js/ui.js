@@ -1,6 +1,3 @@
-import api from './api.js';
-import quiniela from './quiniela.js';
-
 class UI {
     constructor() {
         // Elementos del formulario
@@ -18,15 +15,20 @@ class UI {
         this.puntuacionTable = document.getElementById('tabla-puntuacion');
 
         // Iniciar la aplicación después de que todo esté cargado
-        window.addEventListener('load', () => this.inicializar());
+        this.inicializar();
     }
 
     async inicializar() {
         try {
             console.log('Iniciando aplicación...');
+            // Primero inicializar la quiniela
             await quiniela.inicializar();
-            await this.inicializarEventos();
+            // Luego configurar eventos
+            this.inicializarEventos();
+            // Finalmente cargar datos
             await this.cargarDatos();
+            // Actualizar cada 5 minutos
+            setInterval(() => this.cargarDatos(), 300000);
             console.log('Aplicación inicializada correctamente');
         } catch (error) {
             console.error('Error al inicializar:', error);
@@ -34,10 +36,24 @@ class UI {
         }
     }
 
+    inicializarEventos() {
+        console.log('Inicializando eventos...');
+        // Eventos de selección
+        this.fechaSelect.addEventListener('change', () => this.actualizarEquiposLocales());
+        this.localSelect.addEventListener('change', () => this.actualizarEquiposVisitantes());
+        this.addPredictionBtn.addEventListener('click', () => this.agregarPrediccion());
+    }
+
     async cargarDatos() {
         try {
+            console.log('Cargando datos...');
+            this.mostrarCargando();
+            
             // Cargar fechas disponibles
             const fechas = quiniela.obtenerFechasDisponibles();
+            console.log('Fechas disponibles:', fechas);
+            
+            // Actualizar selector de fechas
             this.fechaSelect.innerHTML = '<option value="">Selecciona una fecha</option>';
             fechas.forEach(fecha => {
                 const option = document.createElement('option');
@@ -46,68 +62,24 @@ class UI {
                 this.fechaSelect.appendChild(option);
             });
 
-            // Actualizar tablas
-            await this.actualizarTablaResultados();
-            await this.actualizarTablaPuntuacion();
-            await this.actualizarTablaPredicciones();
-        } catch (error) {
-            console.error('Error al cargar datos:', error);
-            this.mostrarError('Error al cargar los datos');
-        }
-    }
-
-    async inicializarEventos() {
-        // Eventos de selección
-        this.fechaSelect.addEventListener('change', () => this.actualizarEquiposLocales());
-        this.localSelect.addEventListener('change', () => this.actualizarEquiposVisitantes());
-        this.addPredictionBtn.addEventListener('click', () => this.agregarPrediccion());
-    }
-
-    async inicializarQuiniela() {
-        try {
-            this.mostrarCargando();
-            const success = await quiniela.inicializar();
-            if (success) {
-                await this.cargarFechasDisponibles();
-                await this.actualizarTodo();
-            }
-        } catch (error) {
-            console.error('Error al inicializar quiniela:', error);
-            this.mostrarError('Error al inicializar la quiniela');
-        } finally {
-            this.ocultarCargando();
-        }
-    }
-
-    async actualizarTodo() {
-        this.mostrarCargando();
-        try {
+            // Actualizar todas las tablas
             await Promise.all([
                 this.actualizarTablaResultados(),
                 this.actualizarTablaPuntuacion(),
                 this.actualizarTablaPredicciones()
             ]);
         } catch (error) {
-            console.error('Error al actualizar datos:', error);
+            console.error('Error al cargar datos:', error);
+            this.mostrarError('Error al cargar los datos');
         } finally {
             this.ocultarCargando();
         }
     }
 
-    async cargarFechasDisponibles() {
-        const fechas = quiniela.obtenerFechasDisponibles();
-        this.fechaSelect.innerHTML = '<option value="">Selecciona una fecha</option>';
-        fechas.forEach(fecha => {
-            const option = document.createElement('option');
-            option.value = fecha;
-            option.textContent = this.formatearFecha(fecha);
-            this.fechaSelect.appendChild(option);
-        });
-    }
-
     actualizarEquiposLocales() {
         const fecha = this.fechaSelect.value;
         const equipos = quiniela.obtenerEquiposLocales(fecha);
+        console.log('Equipos locales para', fecha, ':', equipos);
         
         this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
         equipos.forEach(equipo => {
@@ -124,6 +96,7 @@ class UI {
         const fecha = this.fechaSelect.value;
         const local = this.localSelect.value;
         const equipos = quiniela.obtenerEquiposVisitantes(fecha, local);
+        console.log('Equipos visitantes para', fecha, local, ':', equipos);
         
         this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
         equipos.forEach(equipo => {
@@ -136,9 +109,9 @@ class UI {
 
     async actualizarTablaResultados() {
         try {
+            console.log('Actualizando tabla de resultados...');
             const resultados = await quiniela.obtenerResultadosActuales();
-            if (!resultados) return;
-
+            
             this.resultadosTable.innerHTML = '';
             resultados.forEach(resultado => {
                 const row = document.createElement('tr');
@@ -147,7 +120,7 @@ class UI {
                     <td class="px-6 py-4 whitespace-nowrap">${this.formatearFecha(resultado.fecha)}</td>
                     <td class="px-6 py-4">${this.capitalizarEquipo(resultado.local)}</td>
                     <td class="px-6 py-4 text-center font-bold">
-                        ${resultado.marcador || 'Pendiente'}
+                        ${resultado.marcador || '- : -'}
                     </td>
                     <td class="px-6 py-4">${this.capitalizarEquipo(resultado.visitante)}</td>
                     <td class="px-6 py-4">
@@ -159,15 +132,15 @@ class UI {
                 this.resultadosTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar tabla de resultados:', error);
+            console.error('Error al actualizar resultados:', error);
         }
     }
 
     async actualizarTablaPuntuacion() {
         try {
+            console.log('Actualizando tabla de puntuación...');
             const puntuaciones = await quiniela.calcularPuntuaciones();
-            if (!puntuaciones) return;
-
+            
             this.puntuacionTable.innerHTML = '';
             puntuaciones.sort((a, b) => b.puntosTotales - a.puntosTotales)
                        .forEach((puntuacion, index) => {
@@ -182,15 +155,15 @@ class UI {
                 this.puntuacionTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar tabla de puntuación:', error);
+            console.error('Error al actualizar puntuación:', error);
         }
     }
 
     async actualizarTablaPredicciones() {
         try {
+            console.log('Actualizando tabla de predicciones...');
             const predicciones = await quiniela.cargarPredicciones();
-            if (!predicciones) return;
-
+            
             this.prediccionesTable.innerHTML = '';
             predicciones.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                        .forEach(prediccion => {
@@ -213,7 +186,7 @@ class UI {
                 this.prediccionesTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar tabla de predicciones:', error);
+            console.error('Error al actualizar predicciones:', error);
         }
     }
 
@@ -236,7 +209,7 @@ class UI {
             };
 
             await quiniela.guardarPrediccion(prediccion);
-            await this.actualizarTodo();
+            await this.cargarDatos();
             this.limpiarFormulario();
             this.mostrarExito('Pronóstico guardado correctamente');
         } catch (error) {

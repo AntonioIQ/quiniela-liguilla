@@ -4,7 +4,6 @@ class Quiniela {
     constructor() {
         this.partidos = [];
         this.predicciones = [];
-        this.resultados = [];
     }
 
     async inicializar() {
@@ -13,9 +12,6 @@ class Quiniela {
             // Cargar partidos desde Wikipedia
             this.partidos = await api.obtenerResultadosWiki();
             console.log('Partidos cargados:', this.partidos);
-            
-            // Cargar resultados actuales
-            this.resultados = this.partidos.filter(p => p.marcador);
             
             // Cargar predicciones desde GitHub
             await this.cargarPredicciones();
@@ -26,14 +22,9 @@ class Quiniela {
         }
     }
 
-    async obtenerResultadosActuales() {
-        return this.partidos;
-    }
-
     async cargarPredicciones() {
         try {
             this.predicciones = await api.obtenerPredicciones();
-            console.log('Predicciones cargadas:', this.predicciones);
             return this.predicciones;
         } catch (error) {
             console.error('Error al cargar predicciones:', error);
@@ -42,64 +33,8 @@ class Quiniela {
         }
     }
 
-    async calcularPuntuaciones() {
-        const puntuacionesPorParticipante = {};
-
-        this.predicciones.forEach(prediccion => {
-            const puntos = this.calcularPuntosPredicion(prediccion);
-            
-            if (!puntuacionesPorParticipante[prediccion.participante]) {
-                puntuacionesPorParticipante[prediccion.participante] = {
-                    participante: prediccion.participante,
-                    puntosTotales: 0,
-                    aciertosExactos: 0,
-                    soloResultado: 0
-                };
-            }
-
-            if (puntos === 3) {
-                puntuacionesPorParticipante[prediccion.participante].aciertosExactos++;
-                puntuacionesPorParticipante[prediccion.participante].puntosTotales += 3;
-            } else if (puntos === 1) {
-                puntuacionesPorParticipante[prediccion.participante].soloResultado++;
-                puntuacionesPorParticipante[prediccion.participante].puntosTotales += 1;
-            }
-        });
-
-        return Object.values(puntuacionesPorParticipante);
-    }
-
-    calcularPuntosPredicion(prediccion) {
-        // Buscar el resultado real del partido
-        const resultado = this.partidos.find(p => 
-            p.fecha === prediccion.fecha && 
-            p.local === prediccion.local && 
-            p.visitante === prediccion.visitante
-        );
-
-        // Si no hay resultado o el partido no se ha jugado, retornar null
-        if (!resultado || !resultado.marcador) return null;
-
-        // Convertir el marcador a números
-        const [golesLocalReal, golesVisitanteReal] = resultado.marcador.split('-').map(Number);
-        
-        // Verificar resultado exacto
-        if (prediccion.golesLocal === golesLocalReal && 
-            prediccion.golesVisitante === golesVisitanteReal) {
-            return 3;
-        }
-
-        // Verificar solo el resultado (victoria, empate, derrota)
-        const diferenciaPrediccion = prediccion.golesLocal - prediccion.golesVisitante;
-        const diferenciaReal = golesLocalReal - golesVisitanteReal;
-
-        if ((diferenciaPrediccion > 0 && diferenciaReal > 0) ||
-            (diferenciaPrediccion === 0 && diferenciaReal === 0) ||
-            (diferenciaPrediccion < 0 && diferenciaReal < 0)) {
-            return 1;
-        }
-
-        return 0;
+    obtenerResultadosActuales() {
+        return this.partidos;
     }
 
     async guardarPrediccion(prediccion) {
@@ -110,11 +45,14 @@ class Quiniela {
             }
 
             // Verificar si ya existe una predicción para este participante y partido
-            if (this.predicciones.some(p => 
+            const existente = this.predicciones.find(p => 
                 p.participante === prediccion.participante &&
                 p.fecha === prediccion.fecha && 
                 p.local === prediccion.local && 
-                p.visitante === prediccion.visitante)) {
+                p.visitante === prediccion.visitante
+            );
+
+            if (existente) {
                 throw new Error('Ya existe una predicción tuya para este partido');
             }
 
@@ -163,11 +101,7 @@ class Quiniela {
     }
 
     obtenerFechasDisponibles() {
-        return [...new Set(this.partidos.map(p => p.fecha))].sort((a, b) => {
-            const dateA = new Date(a.split(' de ').reverse().join(' '));
-            const dateB = new Date(b.split(' de ').reverse().join(' '));
-            return dateA - dateB;
-        });
+        return [...new Set(this.partidos.map(p => p.fecha))].sort();
     }
 
     obtenerEquiposLocales(fecha) {
@@ -182,6 +116,69 @@ class Quiniela {
             .filter(p => p.fecha === fecha && p.local === local)
             .map(p => p.visitante)
             .sort();
+    }
+
+    calcularPuntosPredicion(prediccion) {
+        console.log('Calculando puntos para:', prediccion);
+        // Buscar el resultado real
+        const partido = this.partidos.find(p => 
+            p.fecha === prediccion.fecha && 
+            p.local === prediccion.local && 
+            p.visitante === prediccion.visitante
+        );
+
+        if (!partido || !partido.marcador) {
+            console.log('Partido no encontrado o sin resultado');
+            return null;
+        }
+
+        const [golesLocalReal, golesVisitanteReal] = partido.marcador.split('-').map(Number);
+        console.log('Resultado real:', golesLocalReal, '-', golesVisitanteReal);
+        console.log('Predicción:', prediccion.golesLocal, '-', prediccion.golesVisitante);
+
+        // Resultado exacto
+        if (prediccion.golesLocal === golesLocalReal && 
+            prediccion.golesVisitante === golesVisitanteReal) {
+            return 3;
+        }
+
+        // Solo ganador o empate
+        const diferenciaPrediccion = prediccion.golesLocal - prediccion.golesVisitante;
+        const diferenciaReal = golesLocalReal - golesVisitanteReal;
+
+        if ((diferenciaPrediccion > 0 && diferenciaReal > 0) ||
+            (diferenciaPrediccion === 0 && diferenciaReal === 0) ||
+            (diferenciaPrediccion < 0 && diferenciaReal < 0)) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    async calcularPuntuaciones() {
+        const puntuacionesPorParticipante = {};
+
+        this.predicciones.forEach(prediccion => {
+            if (!puntuacionesPorParticipante[prediccion.participante]) {
+                puntuacionesPorParticipante[prediccion.participante] = {
+                    participante: prediccion.participante,
+                    puntosTotales: 0,
+                    aciertosExactos: 0,
+                    soloResultado: 0
+                };
+            }
+
+            const puntos = this.calcularPuntosPredicion(prediccion);
+            if (puntos === 3) {
+                puntuacionesPorParticipante[prediccion.participante].aciertosExactos++;
+                puntuacionesPorParticipante[prediccion.participante].puntosTotales += 3;
+            } else if (puntos === 1) {
+                puntuacionesPorParticipante[prediccion.participante].soloResultado++;
+                puntuacionesPorParticipante[prediccion.participante].puntosTotales += 1;
+            }
+        });
+
+        return Object.values(puntuacionesPorParticipante);
     }
 }
 

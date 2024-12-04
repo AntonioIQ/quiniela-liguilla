@@ -17,6 +17,7 @@ class API {
         localStorage.setItem('repo_owner', owner);
         localStorage.setItem('repo_name', repo);
         localStorage.setItem('github_token', token);
+        console.log('Credentials set successfully');
     }
 
     async obtenerResultadosWiki() {
@@ -26,9 +27,12 @@ class API {
                 action: 'parse',
                 page: 'Torneo_Apertura_2024_(México)',
                 format: 'json',
-                prop: 'sections|text',
+                prop: 'text',
+                section: '13',
                 origin: '*',
-                formatversion: '2'
+                formatversion: '2',
+                utf8: true,
+                redirects: true
             });
 
             const url = `${this.WIKI_API}?${params}`;
@@ -36,61 +40,26 @@ class API {
             
             const response = await fetch(url, {
                 headers: {
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 mode: 'cors'
             });
-            console.log('Respuesta de Wikipedia:', response);
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
             
             const data = await response.json();
             console.log('Datos de Wikipedia:', data);
 
-            if (!data.parse || !data.parse.sections) {
+            if (!data.parse || !data.parse.text) {
                 throw new Error('Formato de respuesta inválido');
             }
 
-            const sections = data.parse.sections;
-            console.log('Secciones encontradas:', sections);
-
-            const liguillaSectionId = sections.find(
-                section => section.line.toLowerCase().includes('liguilla')
-            )?.index;
-
-            if (!liguillaSectionId) {
-                throw new Error('Sección de Liguilla no encontrada');
-            }
-
-            console.log('ID de sección de Liguilla:', liguillaSectionId);
-
-            const contentParams = new URLSearchParams({
-                action: 'parse',
-                page: 'Torneo_Apertura_2024_(México)',
-                format: 'json',
-                prop: 'text',
-                section: liguillaSectionId.toString(),
-                origin: '*'
-            });
-
-            const contentResponse = await fetch(`${this.WIKI_API}?${contentParams}`, {
-                headers: {
-                    'Accept': 'application/json'
-                },
-                mode: 'cors'
-            });
-            
-            const contentData = await contentResponse.json();
-            console.log('Datos de contenido:', contentData);
-
-            if (!contentData.parse || !contentData.parse.text) {
-                throw new Error('No se encontró el contenido de la sección');
-            }
-
-            const resultados = this.procesarTablaLiguilla(contentData.parse.text['*']);
-            console.log('Resultados procesados:', resultados);
-            return resultados;
-
+            return this.procesarTablaLiguilla(data.parse.text['*']);
         } catch (error) {
-            console.error('Error detallado en Wikipedia:', error);
+            console.error('Error al obtener datos de Wikipedia:', error);
             throw error;
         }
     }
@@ -111,12 +80,14 @@ class API {
                 if (cells.length > 1) {
                     const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
                     if (fechasValidas.some(f => fecha.includes(f))) {
+                        const marcadorText = cells[2]?.textContent?.trim() || '';
+                        const marcador = marcadorText.split('(')[0].trim().split(':').map(Number);
+                        
                         const partido = {
                             fecha: fecha,
                             local: cells[1]?.textContent?.trim().toLowerCase() || '',
-                            marcador: cells[2]?.textContent?.trim().split('(')[0].trim() || '',
-                            visitante: cells[3]?.textContent?.trim().toLowerCase() || '',
-                            estadio: cells[4]?.textContent?.trim().split(',')[0] || ''
+                            marcador: `${marcador[0]}-${marcador[1]}`,
+                            visitante: cells[3]?.textContent?.trim().toLowerCase() || ''
                         };
                         console.log('Partido encontrado:', partido);
                         partidos.push(partido);
@@ -150,7 +121,6 @@ class API {
             });
 
             if (!response.ok) {
-                console.error('Error response:', response);
                 throw new Error('Error al guardar la predicción');
             }
 
@@ -178,7 +148,6 @@ class API {
             });
 
             if (!response.ok) {
-                console.error('Error response:', response);
                 throw new Error('Error al obtener predicciones');
             }
 
@@ -188,39 +157,6 @@ class API {
             return predicciones;
         } catch (error) {
             console.error('Error al obtener predicciones:', error);
-            throw error;
-        }
-    }
-
-    async eliminarPrediccion(issueNumber) {
-        if (!this.accessToken) {
-            throw new Error('No hay token de acceso');
-        }
-
-        try {
-            console.log('Eliminando predicción:', issueNumber);
-            const response = await fetch(
-                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues/${issueNumber}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `token ${this.accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    state: 'closed'
-                })
-            });
-
-            if (!response.ok) {
-                console.error('Error response:', response);
-                throw new Error('Error al eliminar la predicción');
-            }
-
-            const result = await response.json();
-            console.log('Predicción eliminada:', result);
-            return result;
-        } catch (error) {
-            console.error('Error al eliminar predicción:', error);
             throw error;
         }
     }
