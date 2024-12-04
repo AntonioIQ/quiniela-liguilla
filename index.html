@@ -138,42 +138,42 @@
     </script>
     
     <script type="module">
+        import API from './js/api.js';
+        import QuinielaClass from './js/quiniela.js';
+        import UIClass from './js/ui.js';
+
         const init = async () => {
             try {
                 console.log('Iniciando carga de módulos...');
-                
-                // Cargar módulos
-                const { default: api } = await import('./js/api.js');
-                const { default: QuinielaClass } = await import('./js/quiniela.js');
-                const { default: UIClass } = await import('./js/ui.js');
-                
-                console.log('Módulos cargados, inicializando aplicación...');
-                
+
                 // Crear instancias
-                window.quiniela = new QuinielaClass();
-                window.ui = new UIClass();
-                
+                const api = new API();
+                window.quiniela = new QuinielaClass(api);
+                window.ui = new UIClass(window.quiniela);
+
                 // Configurar API
                 api.setCredentials(
                     window.appConfig.REPO_OWNER, 
                     window.appConfig.REPO_NAME, 
                     window.appConfig.GITHUB_TOKEN
                 );
-                
+
                 // Inicializar la quiniela
                 const inicializada = await window.quiniela.inicializar();
                 if (!inicializada) {
                     throw new Error('No se pudo inicializar la quiniela');
                 }
-    
-                // Aquí puedes continuar con la lógica de inicialización de la interfaz de usuario
+
+                // Inicializar la interfaz de usuario
+                await window.ui.inicializar();
+
                 console.log('Aplicación inicializada correctamente');
             } catch (error) {
                 console.error('Error fatal:', error);
                 alert('Error al cargar la aplicación: ' + error.message);
             }
         };
-    
+
         // Iniciar cuando el DOM esté listo
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
@@ -181,6 +181,6 @@
             init();
         }
     </script>
-    
+
 </body>
 </html>
