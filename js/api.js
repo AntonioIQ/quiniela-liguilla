@@ -2,7 +2,6 @@ export default class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
-        // Inicializar con valores del localStorage si existen
         this.REPO_OWNER = localStorage.getItem('repo_owner') || '';
         this.REPO_NAME = localStorage.getItem('repo_name') || '';
         this.accessToken = localStorage.getItem('github_token') || '';
@@ -68,41 +67,48 @@ export default class API {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');
 
-        // Seleccionar las tablas del bracket
-        const tablasBracket = doc.querySelectorAll('table');
+        // Buscar las subsecciones de la Liguilla
+        const subsecciones = [...doc.querySelectorAll('h3')].filter((h3) => {
+            const texto = h3.textContent.trim().toLowerCase();
+            return texto.includes('cuartos de final') || texto.includes('semifinales');
+        });
+
         const partidos = [];
 
-        tablasBracket.forEach((table) => {
-            const rows = table.querySelectorAll('tr');
-            let equipoLocal = null;
+        subsecciones.forEach((subseccion) => {
+            console.log('Procesando subsección:', subseccion.textContent.trim());
+            
+            // Buscar la siguiente tabla después del encabezado
+            let nodoActual = subseccion.nextElementSibling;
 
-            rows.forEach((row) => {
-                const cells = row.querySelectorAll('td');
-                cells.forEach((cell) => {
-                    const cellText = cell.textContent.trim();
+            while (nodoActual && nodoActual.tagName !== 'H3') {
+                if (nodoActual.tagName === 'TABLE' && nodoActual.classList.contains('vevent')) {
+                    const rows = nodoActual.querySelectorAll('tr');
+                    rows.forEach((row) => {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length >= 4) {
+                            const local = cells[0]?.textContent?.trim();
+                            const marcadorText = cells[1]?.textContent?.trim();
+                            const visitante = cells[2]?.textContent?.trim();
+                            const estado = cells[3]?.textContent?.trim();
 
-                    // Si es un nombre de equipo
-                    if (cellText && cellText.match(/[a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]/)) {
-                        if (!equipoLocal) {
-                            equipoLocal = cellText; // Guardar como equipo local
-                        } else {
-                            // Si ya tenemos equipo local, este es el visitante
-                            const equipoVisitante = cellText;
-
-                            // Intentar encontrar el marcador
-                            const marcador = cells[1]?.textContent?.trim() || '-';
+                            const marcadorMatch = marcadorText?.match(/(\d+)\s*[-:]\s*(\d+)/);
+                            const marcador = marcadorMatch
+                                ? `${marcadorMatch[1]}-${marcadorMatch[2]}`
+                                : null;
 
                             partidos.push({
-                                local: equipoLocal,
-                                visitante: equipoVisitante,
-                                marcador: marcador,
+                                etapa: subseccion.textContent.trim(),
+                                local,
+                                visitante,
+                                marcador: marcador || '-',
+                                estado: estado || 'Pendiente',
                             });
-
-                            equipoLocal = null; // Reiniciar para el siguiente partido
                         }
-                    }
-                });
-            });
+                    });
+                }
+                nodoActual = nodoActual.nextElementSibling;
+            }
         });
 
         console.log('Total de partidos encontrados:', partidos.length);
