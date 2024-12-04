@@ -125,25 +125,35 @@
     </div>
 
     <script type="module">
-        import config from './js/config.prod.js';
-        import api from './js/api.js';
-        import quiniela from './js/quiniela.js';
-        import ui from './js/ui.js';
-        
-        // Solicitar token si no existe
-        if (!localStorage.getItem('github_token')) {
-            const token = prompt('Por favor, ingresa tu GitHub Personal Access Token:');
-            if (token) {
-                localStorage.setItem('github_token', token);
+        const init = async () => {
+            try {
+                console.log('Iniciando carga de módulos...');
+                // Importar módulos
+                const { default: config } = await import('./js/config.js');
+                const { default: api } = await import('./js/api.js');
+                const { default: QuinielaClass } = await import('./js/quiniela.js');
+                const { default: UIClass } = await import('./js/ui.js');
+                
+                console.log('Módulos cargados, inicializando aplicación...');
+                
+                // Crear instancias
+                window.quiniela = new QuinielaClass();
+                window.ui = new UIClass();
+                
+                // Configurar API
+                api.setCredentials(config.REPO_OWNER, config.REPO_NAME, config.GITHUB_TOKEN);
+                
+                console.log('Aplicación inicializada correctamente');
+            } catch (error) {
+                console.error('Error al inicializar:', error);
+                alert('Error al cargar la aplicación');
             }
-        }
-        
-        // Inicializar con el token guardado
-        const token = localStorage.getItem('github_token');
-        config.GITHUB_TOKEN = token;
-        
-        console.log('Inicializando con configuración...');
-        api.setCredentials(config.REPO_OWNER, config.REPO_NAME, token);
+        };
+
+        // Iniciar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            init().catch(console.error);
+        });
     </script>
 </body>
 </html>

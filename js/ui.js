@@ -14,24 +14,19 @@ class UI {
         this.resultadosTable = document.getElementById('resultados-oficiales');
         this.puntuacionTable = document.getElementById('tabla-puntuacion');
 
-        // Iniciar la aplicación después de que todo esté cargado
+        // Inicializar cuando se cree la instancia
         this.inicializar();
     }
 
     async inicializar() {
         try {
-            console.log('Iniciando aplicación...');
-            // Primero inicializar la quiniela
-            await quiniela.inicializar();
-            // Luego configurar eventos
+            console.log('Inicializando UI...');
             this.inicializarEventos();
-            // Finalmente cargar datos
             await this.cargarDatos();
-            // Actualizar cada 5 minutos
-            setInterval(() => this.cargarDatos(), 300000);
-            console.log('Aplicación inicializada correctamente');
+            setInterval(() => this.cargarDatos(), 300000); // Actualizar cada 5 minutos
+            console.log('UI inicializada correctamente');
         } catch (error) {
-            console.error('Error al inicializar:', error);
+            console.error('Error al inicializar UI:', error);
             this.mostrarError('Error al inicializar la aplicación');
         }
     }
@@ -50,7 +45,7 @@ class UI {
             this.mostrarCargando();
             
             // Cargar fechas disponibles
-            const fechas = quiniela.obtenerFechasDisponibles();
+            const fechas = window.quiniela.obtenerFechasDisponibles();
             console.log('Fechas disponibles:', fechas);
             
             // Actualizar selector de fechas
@@ -68,6 +63,8 @@ class UI {
                 this.actualizarTablaPuntuacion(),
                 this.actualizarTablaPredicciones()
             ]);
+
+            console.log('Datos cargados correctamente');
         } catch (error) {
             console.error('Error al cargar datos:', error);
             this.mostrarError('Error al cargar los datos');
@@ -76,42 +73,11 @@ class UI {
         }
     }
 
-    actualizarEquiposLocales() {
-        const fecha = this.fechaSelect.value;
-        const equipos = quiniela.obtenerEquiposLocales(fecha);
-        console.log('Equipos locales para', fecha, ':', equipos);
-        
-        this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
-        equipos.forEach(equipo => {
-            const option = document.createElement('option');
-            option.value = equipo;
-            option.textContent = this.capitalizarEquipo(equipo);
-            this.localSelect.appendChild(option);
-        });
-
-        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
-    }
-
-    actualizarEquiposVisitantes() {
-        const fecha = this.fechaSelect.value;
-        const local = this.localSelect.value;
-        const equipos = quiniela.obtenerEquiposVisitantes(fecha, local);
-        console.log('Equipos visitantes para', fecha, local, ':', equipos);
-        
-        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
-        equipos.forEach(equipo => {
-            const option = document.createElement('option');
-            option.value = equipo;
-            option.textContent = this.capitalizarEquipo(equipo);
-            this.visitanteSelect.appendChild(option);
-        });
-    }
-
     async actualizarTablaResultados() {
         try {
-            console.log('Actualizando tabla de resultados...');
-            const resultados = await quiniela.obtenerResultadosActuales();
-            
+            const resultados = window.quiniela.obtenerResultadosActuales();
+            if (!resultados) return;
+
             this.resultadosTable.innerHTML = '';
             resultados.forEach(resultado => {
                 const row = document.createElement('tr');
@@ -132,15 +98,15 @@ class UI {
                 this.resultadosTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar resultados:', error);
+            console.error('Error al actualizar tabla de resultados:', error);
         }
     }
 
     async actualizarTablaPuntuacion() {
         try {
-            console.log('Actualizando tabla de puntuación...');
-            const puntuaciones = await quiniela.calcularPuntuaciones();
-            
+            const puntuaciones = await window.quiniela.calcularPuntuaciones();
+            if (!puntuaciones) return;
+
             this.puntuacionTable.innerHTML = '';
             puntuaciones.sort((a, b) => b.puntosTotales - a.puntosTotales)
                        .forEach((puntuacion, index) => {
@@ -155,19 +121,19 @@ class UI {
                 this.puntuacionTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar puntuación:', error);
+            console.error('Error al actualizar tabla de puntuación:', error);
         }
     }
 
     async actualizarTablaPredicciones() {
         try {
-            console.log('Actualizando tabla de predicciones...');
-            const predicciones = await quiniela.cargarPredicciones();
-            
+            const predicciones = await window.quiniela.cargarPredicciones();
+            if (!predicciones) return;
+
             this.prediccionesTable.innerHTML = '';
             predicciones.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                        .forEach(prediccion => {
-                const puntos = quiniela.calcularPuntosPredicion(prediccion);
+                const puntos = window.quiniela.calcularPuntosPredicion(prediccion);
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap">${prediccion.participante}</td>
@@ -186,8 +152,39 @@ class UI {
                 this.prediccionesTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar predicciones:', error);
+            console.error('Error al actualizar tabla de predicciones:', error);
         }
+    }
+
+    actualizarEquiposLocales() {
+        const fecha = this.fechaSelect.value;
+        const equipos = window.quiniela.obtenerEquiposLocales(fecha);
+        console.log('Equipos locales para', fecha, ':', equipos);
+        
+        this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
+        equipos.forEach(equipo => {
+            const option = document.createElement('option');
+            option.value = equipo;
+            option.textContent = this.capitalizarEquipo(equipo);
+            this.localSelect.appendChild(option);
+        });
+
+        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
+    }
+
+    actualizarEquiposVisitantes() {
+        const fecha = this.fechaSelect.value;
+        const local = this.localSelect.value;
+        const equipos = window.quiniela.obtenerEquiposVisitantes(fecha, local);
+        console.log('Equipos visitantes para', fecha, local, ':', equipos);
+        
+        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
+        equipos.forEach(equipo => {
+            const option = document.createElement('option');
+            option.value = equipo;
+            option.textContent = this.capitalizarEquipo(equipo);
+            this.visitanteSelect.appendChild(option);
+        });
     }
 
     async agregarPrediccion() {
@@ -208,7 +205,7 @@ class UI {
                 timestamp: new Date().toISOString()
             };
 
-            await quiniela.guardarPrediccion(prediccion);
+            await window.quiniela.guardarPrediccion(prediccion);
             await this.cargarDatos();
             this.limpiarFormulario();
             this.mostrarExito('Pronóstico guardado correctamente');
@@ -286,5 +283,4 @@ class UI {
     }
 }
 
-const ui = new UI();
-export default ui;
+export default UI;
