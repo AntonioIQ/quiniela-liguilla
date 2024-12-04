@@ -30,7 +30,6 @@ export default class API {
                 page: 'Torneo_Apertura_2024_(México)',
                 format: 'json',
                 prop: 'text',
-                section: '13',
                 origin: '*',
                 formatversion: '2',
                 utf8: '1',
@@ -70,41 +69,89 @@ export default class API {
         console.log('Procesando tabla de la Liguilla...');
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent['*'], 'text/html');
-        const tables = doc.querySelectorAll('table.wikitable');
+        const secciones = doc.querySelectorAll('h3, h4, table.wikitable');
+
         const partidos = [];
+        let fechaActual = '';
+        let etapaActual = '';
 
-        tables.forEach((table, index) => {
-            console.log(`Procesando tabla ${index + 1}...`);
-            const rows = table.querySelectorAll('tr');
+        secciones.forEach((element) => {
+            if (element.tagName === 'H3' || element.tagName === 'H4') {
+                // Título de sección (Cuartos de final, Semifinales, etc.)
+                etapaActual = element.textContent.trim();
+                console.log('Etapa actual:', etapaActual);
+            } else if (element.tagName === 'TABLE') {
+                // Tabla de partidos
+                const rows = element.querySelectorAll('tr');
+                rows.forEach((row) => {
+                    const cells = row.querySelectorAll('th, td');
+                    if (cells.length >= 5) {
+                        // Verificar si la primera celda es una fecha
+                        const posibleFecha = cells[0]?.textContent?.trim();
+                        if (this.esFechaValida(posibleFecha)) {
+                            fechaActual = this.convertirFecha(posibleFecha);
+                        }
 
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('th, td');
-                if (cells.length >= 5) {
-                    const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
-                    const local = cells[1]?.textContent?.trim().toLowerCase() || '';
-                    const marcadorText = cells[2]?.textContent?.trim() || '';
-                    const visitante = cells[3]?.textContent?.trim().toLowerCase() || '';
-                    const estado = cells[4]?.textContent?.trim().toLowerCase() || '';
+                        const local = cells[1]?.textContent?.trim().toLowerCase() || '';
+                        const marcadorText = cells[2]?.textContent?.trim() || '';
+                        const visitante = cells[3]?.textContent?.trim().toLowerCase() || '';
+                        const estado = cells[4]?.textContent?.trim().toLowerCase() || '';
 
-                    const marcadorMatch = marcadorText.match(/(\d+)\s*[-:]\s*(\d+)/);
-                    const marcador = marcadorMatch ? `${marcadorMatch[1]}-${marcadorMatch[2]}` : null;
+                        // Extraer el marcador
+                        const marcadorMatch = marcadorText.match(/(\d+)\s*[-:]\s*(\d+)/);
+                        const marcador = marcadorMatch ? `${marcadorMatch[1]}-${marcadorMatch[2]}` : null;
 
-                    const partido = {
-                        fecha: fecha,
-                        local: local,
-                        marcador: marcador,
-                        visitante: visitante,
-                        estado: estado
-                    };
+                        const partido = {
+                            fecha: fechaActual,
+                            etapa: etapaActual,
+                            local: local,
+                            marcador: marcador,
+                            visitante: visitante,
+                            estado: estado
+                        };
 
-                    console.log('Partido encontrado:', partido);
-                    partidos.push(partido);
-                }
-            });
+                        console.log('Partido encontrado:', partido);
+                        partidos.push(partido);
+                    }
+                });
+            }
         });
 
         console.log('Total de partidos encontrados:', partidos.length);
         return partidos;
+    }
+
+    esFechaValida(texto) {
+        // Verificar si el texto es una fecha válida (por ejemplo, '27 de noviembre')
+        const fechaRegex = /^\d{1,2}\s+de\s+\w+$/i;
+        return fechaRegex.test(texto);
+    }
+
+    convertirFecha(texto) {
+        // Convertir texto de fecha a formato 'YYYY-MM-DD'
+        const meses = {
+            'enero': '01',
+            'febrero': '02',
+            'marzo': '03',
+            'abril': '04',
+            'mayo': '05',
+            'junio': '06',
+            'julio': '07',
+            'agosto': '08',
+            'septiembre': '09',
+            'octubre': '10',
+            'noviembre': '11',
+            'diciembre': '12'
+        };
+
+        const partes = texto.toLowerCase().split(' de ');
+        if (partes.length !== 2) return texto;
+
+        const dia = partes[0].padStart(2, '0');
+        const mes = meses[partes[1]] || '01';
+        const anio = new Date().getFullYear(); // Asumimos el año actual
+
+        return `${anio}-${mes}-${dia}`;
     }
 
     async guardarPrediccion(prediccion) {
@@ -148,7 +195,7 @@ export default class API {
         try {
             console.log('Obteniendo predicciones...');
             const response = await fetch(
-                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion&state=open`, {
+                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion&state=open&per_page=100`, {
                 headers: {
                     'Authorization': `token ${this.accessToken}`
                 }
