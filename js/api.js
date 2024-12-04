@@ -1,5 +1,3 @@
-// js/api.js
-
 export default class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
@@ -66,92 +64,50 @@ export default class API {
     }
 
     procesarTablaLiguilla(htmlContent) {
-        console.log('Procesando tabla de la Liguilla...');
+        console.log('Contenido HTML recibido:', htmlContent);
         const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlContent['*'], 'text/html');
-        const secciones = doc.querySelectorAll('h3, h4, table.wikitable');
+        const doc = parser.parseFromString(htmlContent, 'text/html');
 
+        // Seleccionar las tablas del bracket
+        const tablasBracket = doc.querySelectorAll('table');
         const partidos = [];
-        let fechaActual = '';
-        let etapaActual = '';
 
-        secciones.forEach((element) => {
-            if (element.tagName === 'H3' || element.tagName === 'H4') {
-                // Título de sección (Cuartos de final, Semifinales, etc.)
-                etapaActual = element.textContent.trim();
-                console.log('Etapa actual:', etapaActual);
-            } else if (element.tagName === 'TABLE') {
-                // Tabla de partidos
-                const rows = element.querySelectorAll('tr');
-                rows.forEach((row) => {
-                    const cells = row.querySelectorAll('th, td');
-                    if (cells.length >= 5) {
-                        // Verificar si la primera celda es una fecha
-                        const posibleFecha = cells[0]?.textContent?.trim();
-                        if (this.esFechaValida(posibleFecha)) {
-                            fechaActual = this.convertirFecha(posibleFecha);
+        tablasBracket.forEach((table) => {
+            const rows = table.querySelectorAll('tr');
+            let equipoLocal = null;
+
+            rows.forEach((row) => {
+                const cells = row.querySelectorAll('td');
+                cells.forEach((cell) => {
+                    const cellText = cell.textContent.trim();
+
+                    // Si es un nombre de equipo
+                    if (cellText && cellText.match(/[a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]/)) {
+                        if (!equipoLocal) {
+                            equipoLocal = cellText; // Guardar como equipo local
+                        } else {
+                            // Si ya tenemos equipo local, este es el visitante
+                            const equipoVisitante = cellText;
+
+                            // Intentar encontrar el marcador
+                            const marcador = cells[1]?.textContent?.trim() || '-';
+
+                            partidos.push({
+                                local: equipoLocal,
+                                visitante: equipoVisitante,
+                                marcador: marcador,
+                            });
+
+                            equipoLocal = null; // Reiniciar para el siguiente partido
                         }
-
-                        const local = cells[1]?.textContent?.trim().toLowerCase() || '';
-                        const marcadorText = cells[2]?.textContent?.trim() || '';
-                        const visitante = cells[3]?.textContent?.trim().toLowerCase() || '';
-                        const estado = cells[4]?.textContent?.trim().toLowerCase() || '';
-
-                        // Extraer el marcador
-                        const marcadorMatch = marcadorText.match(/(\d+)\s*[-:]\s*(\d+)/);
-                        const marcador = marcadorMatch ? `${marcadorMatch[1]}-${marcadorMatch[2]}` : null;
-
-                        const partido = {
-                            fecha: fechaActual,
-                            etapa: etapaActual,
-                            local: local,
-                            marcador: marcador,
-                            visitante: visitante,
-                            estado: estado
-                        };
-
-                        console.log('Partido encontrado:', partido);
-                        partidos.push(partido);
                     }
                 });
-            }
+            });
         });
 
         console.log('Total de partidos encontrados:', partidos.length);
+        console.log('Partidos:', partidos);
         return partidos;
-    }
-
-    esFechaValida(texto) {
-        // Verificar si el texto es una fecha válida (por ejemplo, '27 de noviembre')
-        const fechaRegex = /^\d{1,2}\s+de\s+\w+$/i;
-        return fechaRegex.test(texto);
-    }
-
-    convertirFecha(texto) {
-        // Convertir texto de fecha a formato 'YYYY-MM-DD'
-        const meses = {
-            'enero': '01',
-            'febrero': '02',
-            'marzo': '03',
-            'abril': '04',
-            'mayo': '05',
-            'junio': '06',
-            'julio': '07',
-            'agosto': '08',
-            'septiembre': '09',
-            'octubre': '10',
-            'noviembre': '11',
-            'diciembre': '12'
-        };
-
-        const partes = texto.toLowerCase().split(' de ');
-        if (partes.length !== 2) return texto;
-
-        const dia = partes[0].padStart(2, '0');
-        const mes = meses[partes[1]] || '01';
-        const anio = new Date().getFullYear(); // Asumimos el año actual
-
-        return `${anio}-${mes}-${dia}`;
     }
 
     async guardarPrediccion(prediccion) {
@@ -214,6 +170,4 @@ export default class API {
             throw error;
         }
     }
-
-    // Puedes agregar métodos adicionales si es necesario
 }
