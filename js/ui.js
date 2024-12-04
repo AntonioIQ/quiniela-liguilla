@@ -1,29 +1,53 @@
-class UI {
-    constructor() {
-        // Elementos del formulario
-        this.participanteInput = document.getElementById('participante');
-        this.fechaSelect = document.getElementById('fecha');
-        this.localSelect = document.getElementById('local');
-        this.visitanteSelect = document.getElementById('visitante');
-        this.golesLocalInput = document.getElementById('goles-local');
-        this.golesVisitanteInput = document.getElementById('goles-visitante');
-        this.addPredictionBtn = document.getElementById('add-prediction-btn');
-        
-        // Tablas
-        this.prediccionesTable = document.getElementById('predicciones');
-        this.resultadosTable = document.getElementById('resultados-oficiales');
-        this.puntuacionTable = document.getElementById('tabla-puntuacion');
+// js/ui.js
 
-        // Inicializar cuando se cree la instancia
-        this.inicializar();
+export default class UI {
+    constructor(quiniela) {
+        this.quiniela = quiniela;
+
+        // Inicializamos variables para los elementos del DOM
+        this.participanteInput = null;
+        this.fechaSelect = null;
+        this.localSelect = null;
+        this.visitanteSelect = null;
+        this.golesLocalInput = null;
+        this.golesVisitanteInput = null;
+        this.addPredictionBtn = null;
+
+        // Tablas
+        this.prediccionesTable = null;
+        this.resultadosTable = null;
+        this.puntuacionTable = null;
+
+        // No llamamos a this.inicializar() aquí
     }
 
     async inicializar() {
         try {
             console.log('Inicializando UI...');
+
+            // Asignar elementos del DOM aquí
+            this.participanteInput = document.getElementById('participante');
+            this.fechaSelect = document.getElementById('fecha');
+            this.localSelect = document.getElementById('local');
+            this.visitanteSelect = document.getElementById('visitante');
+            this.golesLocalInput = document.getElementById('goles-local');
+            this.golesVisitanteInput = document.getElementById('goles-visitante');
+            this.addPredictionBtn = document.getElementById('add-prediction-btn');
+
+            // Tablas
+            this.prediccionesTable = document.getElementById('predicciones');
+            this.resultadosTable = document.getElementById('resultados-oficiales');
+            this.puntuacionTable = document.getElementById('tabla-puntuacion');
+
+            // Inicializar eventos
             this.inicializarEventos();
+
+            // Cargar datos iniciales
             await this.cargarDatos();
-            setInterval(() => this.cargarDatos(), 300000); // Actualizar cada 5 minutos
+
+            // Actualizar datos cada 5 minutos
+            setInterval(() => this.cargarDatos(), 300000);
+
             console.log('UI inicializada correctamente');
         } catch (error) {
             console.error('Error al inicializar UI:', error);
@@ -33,6 +57,7 @@ class UI {
 
     inicializarEventos() {
         console.log('Inicializando eventos...');
+
         // Eventos de selección
         this.fechaSelect.addEventListener('change', () => this.actualizarEquiposLocales());
         this.localSelect.addEventListener('change', () => this.actualizarEquiposVisitantes());
@@ -43,11 +68,11 @@ class UI {
         try {
             console.log('Cargando datos...');
             this.mostrarCargando();
-            
+
             // Cargar fechas disponibles
-            const fechas = window.quiniela.obtenerFechasDisponibles();
+            const fechas = this.quiniela.obtenerFechasDisponibles();
             console.log('Fechas disponibles:', fechas);
-            
+
             // Actualizar selector de fechas
             this.fechaSelect.innerHTML = '<option value="">Selecciona una fecha</option>';
             fechas.forEach(fecha => {
@@ -75,7 +100,7 @@ class UI {
 
     async actualizarTablaResultados() {
         try {
-            const resultados = window.quiniela.obtenerResultadosActuales();
+            const resultados = this.quiniela.obtenerResultadosActuales();
             if (!resultados) return;
 
             this.resultadosTable.innerHTML = '';
@@ -104,12 +129,12 @@ class UI {
 
     async actualizarTablaPuntuacion() {
         try {
-            const puntuaciones = await window.quiniela.calcularPuntuaciones();
+            const puntuaciones = await this.quiniela.calcularPuntuaciones();
             if (!puntuaciones) return;
 
             this.puntuacionTable.innerHTML = '';
             puntuaciones.sort((a, b) => b.puntosTotales - a.puntosTotales)
-                       .forEach((puntuacion, index) => {
+                        .forEach((puntuacion, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap">${index + 1}°</td>
@@ -127,13 +152,13 @@ class UI {
 
     async actualizarTablaPredicciones() {
         try {
-            const predicciones = await window.quiniela.cargarPredicciones();
+            const predicciones = this.quiniela.predicciones;
             if (!predicciones) return;
 
             this.prediccionesTable.innerHTML = '';
             predicciones.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                       .forEach(prediccion => {
-                const puntos = window.quiniela.calcularPuntosPredicion(prediccion);
+                        .forEach(prediccion => {
+                const puntos = this.quiniela.calcularPuntosPrediccion(prediccion);
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap">${prediccion.participante}</td>
@@ -158,9 +183,9 @@ class UI {
 
     actualizarEquiposLocales() {
         const fecha = this.fechaSelect.value;
-        const equipos = window.quiniela.obtenerEquiposLocales(fecha);
+        const equipos = this.quiniela.obtenerEquiposLocales(fecha);
         console.log('Equipos locales para', fecha, ':', equipos);
-        
+
         this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
         equipos.forEach(equipo => {
             const option = document.createElement('option');
@@ -175,9 +200,9 @@ class UI {
     actualizarEquiposVisitantes() {
         const fecha = this.fechaSelect.value;
         const local = this.localSelect.value;
-        const equipos = window.quiniela.obtenerEquiposVisitantes(fecha, local);
+        const equipos = this.quiniela.obtenerEquiposVisitantes(fecha, local);
         console.log('Equipos visitantes para', fecha, local, ':', equipos);
-        
+
         this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
         equipos.forEach(equipo => {
             const option = document.createElement('option');
@@ -205,7 +230,7 @@ class UI {
                 timestamp: new Date().toISOString()
             };
 
-            await window.quiniela.guardarPrediccion(prediccion);
+            await this.quiniela.guardarPrediccion(prediccion);
             await this.cargarDatos();
             this.limpiarFormulario();
             this.mostrarExito('Pronóstico guardado correctamente');
@@ -215,9 +240,9 @@ class UI {
     }
 
     calcularEstadoPartido(fecha) {
-        const fechaPartido = new Date(fecha.split(' de ').reverse().join(' '));
+        const fechaPartido = new Date(fecha);
         const ahora = new Date();
-        
+
         if (ahora < fechaPartido) return 'Pendiente';
         if (ahora.getTime() - fechaPartido.getTime() < 2 * 60 * 60 * 1000) return 'En Juego';
         return 'Finalizado';
@@ -242,7 +267,11 @@ class UI {
     }
 
     formatearFecha(fecha) {
-        return fecha.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        // Asumiendo que la fecha está en formato 'YYYY-MM-DD'
+        // Convertir a formato legible
+        const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
+        const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', opciones);
+        return fechaFormateada;
     }
 
     capitalizarEquipo(equipo) {
@@ -252,8 +281,8 @@ class UI {
     limpiarFormulario() {
         this.participanteInput.value = '';
         this.fechaSelect.value = '';
-        this.localSelect.value = '';
-        this.visitanteSelect.value = '';
+        this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
+        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
         this.golesLocalInput.value = '0';
         this.golesVisitanteInput.value = '0';
     }
@@ -282,5 +311,3 @@ class UI {
         setTimeout(() => alert.remove(), 3000);
     }
 }
-
-export default UI;

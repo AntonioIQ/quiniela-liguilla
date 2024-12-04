@@ -1,11 +1,13 @@
-class API {
+// js/api.js
+
+export default class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
         // Inicializar con valores del localStorage si existen
         this.REPO_OWNER = localStorage.getItem('repo_owner') || '';
         this.REPO_NAME = localStorage.getItem('repo_name') || '';
-        this.accessToken = localStorage.getItem('github_token');
+        this.accessToken = localStorage.getItem('github_token') || '';
         console.log('API initialized with token:', this.accessToken ? 'present' : 'missing');
     }
 
@@ -13,7 +15,7 @@ class API {
         this.REPO_OWNER = owner;
         this.REPO_NAME = repo;
         this.accessToken = token;
-        
+
         localStorage.setItem('repo_owner', owner);
         localStorage.setItem('repo_name', repo);
         localStorage.setItem('github_token', token);
@@ -31,13 +33,13 @@ class API {
                 section: '13',
                 origin: '*',
                 formatversion: '2',
-                utf8: true,
-                redirects: true
+                utf8: '1',
+                redirects: '1'
             });
 
-            const url = `${this.WIKI_API}?${params}`;
+            const url = `${this.WIKI_API}?${params.toString()}`;
             console.log('URL de Wikipedia:', url);
-            
+
             const response = await fetch(url, {
                 headers: {
                     'Accept': 'application/json',
@@ -49,7 +51,7 @@ class API {
             if (!response.ok) {
                 throw new Error(`Error HTTP: ${response.status}`);
             }
-            
+
             const data = await response.json();
             console.log('Datos de Wikipedia:', data);
 
@@ -57,7 +59,7 @@ class API {
                 throw new Error('Formato de respuesta inválido');
             }
 
-            return this.procesarTablaLiguilla(data.parse.text['*']);
+            return this.procesarTablaLiguilla(data.parse.text);
         } catch (error) {
             console.error('Error al obtener datos de Wikipedia:', error);
             throw error;
@@ -67,31 +69,36 @@ class API {
     procesarTablaLiguilla(htmlContent) {
         console.log('Procesando tabla de la Liguilla...');
         const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlContent, 'text/html');
-        const tables = doc.querySelectorAll('table');
+        const doc = parser.parseFromString(htmlContent['*'], 'text/html');
+        const tables = doc.querySelectorAll('table.wikitable');
         const partidos = [];
-        const fechasValidas = ['27 de noviembre', '28 de noviembre', '30 de noviembre', '1 de diciembre'];
 
         tables.forEach((table, index) => {
             console.log(`Procesando tabla ${index + 1}...`);
             const rows = table.querySelectorAll('tr');
+
             rows.forEach(row => {
                 const cells = row.querySelectorAll('th, td');
-                if (cells.length > 1) {
+                if (cells.length >= 5) {
                     const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
-                    if (fechasValidas.some(f => fecha.includes(f))) {
-                        const marcadorText = cells[2]?.textContent?.trim() || '';
-                        const marcador = marcadorText.split('(')[0].trim().split(':').map(Number);
-                        
-                        const partido = {
-                            fecha: fecha,
-                            local: cells[1]?.textContent?.trim().toLowerCase() || '',
-                            marcador: `${marcador[0]}-${marcador[1]}`,
-                            visitante: cells[3]?.textContent?.trim().toLowerCase() || ''
-                        };
-                        console.log('Partido encontrado:', partido);
-                        partidos.push(partido);
-                    }
+                    const local = cells[1]?.textContent?.trim().toLowerCase() || '';
+                    const marcadorText = cells[2]?.textContent?.trim() || '';
+                    const visitante = cells[3]?.textContent?.trim().toLowerCase() || '';
+                    const estado = cells[4]?.textContent?.trim().toLowerCase() || '';
+
+                    const marcadorMatch = marcadorText.match(/(\d+)\s*[-:]\s*(\d+)/);
+                    const marcador = marcadorMatch ? `${marcadorMatch[1]}-${marcadorMatch[2]}` : null;
+
+                    const partido = {
+                        fecha: fecha,
+                        local: local,
+                        marcador: marcador,
+                        visitante: visitante,
+                        estado: estado
+                    };
+
+                    console.log('Partido encontrado:', partido);
+                    partidos.push(partido);
                 }
             });
         });
@@ -160,7 +167,6 @@ class API {
             throw error;
         }
     }
-}
 
-const api = new API();
-export default api;
+    // Puedes agregar métodos adicionales si es necesario
+}

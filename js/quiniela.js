@@ -1,7 +1,8 @@
-import api from './api.js';
+// js/quiniela.js
 
-class Quiniela {
-    constructor() {
+export default class Quiniela {
+    constructor(api) {
+        this.api = api;
         this.partidos = [];
         this.predicciones = [];
     }
@@ -10,7 +11,7 @@ class Quiniela {
         try {
             console.log('Inicializando quiniela...');
             // Cargar partidos desde Wikipedia
-            this.partidos = await api.obtenerResultadosWiki();
+            this.partidos = await this.api.obtenerResultadosWiki();
             console.log('Partidos cargados:', this.partidos);
             
             // Cargar predicciones desde GitHub
@@ -24,7 +25,7 @@ class Quiniela {
 
     async cargarPredicciones() {
         try {
-            this.predicciones = await api.obtenerPredicciones();
+            this.predicciones = await this.api.obtenerPredicciones();
             return this.predicciones;
         } catch (error) {
             console.error('Error al cargar predicciones:', error);
@@ -57,7 +58,7 @@ class Quiniela {
             }
 
             // Guardar en GitHub
-            const resultado = await api.guardarPrediccion(prediccion);
+            const resultado = await this.api.guardarPrediccion(prediccion);
             
             // Actualizar lista local
             this.predicciones.push(prediccion);
@@ -118,7 +119,7 @@ class Quiniela {
             .sort();
     }
 
-    calcularPuntosPredicion(prediccion) {
+    calcularPuntosPrediccion(prediccion) {
         console.log('Calculando puntos para:', prediccion);
         // Buscar el resultado real
         const partido = this.partidos.find(p => 
@@ -168,7 +169,7 @@ class Quiniela {
                 };
             }
 
-            const puntos = this.calcularPuntosPredicion(prediccion);
+            const puntos = this.calcularPuntosPrediccion(prediccion);
             if (puntos === 3) {
                 puntuacionesPorParticipante[prediccion.participante].aciertosExactos++;
                 puntuacionesPorParticipante[prediccion.participante].puntosTotales += 3;
@@ -181,6 +182,3 @@ class Quiniela {
         return Object.values(puntuacionesPorParticipante);
     }
 }
-
-const quiniela = new Quiniela();
-export default quiniela;
