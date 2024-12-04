@@ -26,6 +26,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Fecha</label>
                         <select id="fecha" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Selecciona una fecha</option>
                         </select>
                     </div>
                     
@@ -33,6 +34,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Local</label>
                             <select id="local" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Selecciona equipo local</option>
                             </select>
                         </div>
                         <div>
@@ -48,6 +50,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Visitante</label>
                             <select id="visitante" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Selecciona equipo visitante</option>
                             </select>
                         </div>
                     </div>
@@ -128,15 +131,32 @@
         const init = async () => {
             try {
                 console.log('Iniciando carga de módulos...');
-                // Importar módulos
-                const { default: config } = await import('./js/config.js');
-                const { default: api } = await import('./js/api.js');
-                const { default: QuinielaClass } = await import('./js/quiniela.js');
-                const { default: UIClass } = await import('./js/ui.js');
                 
-                console.log('Módulos cargados, inicializando aplicación...');
+                // Cargar módulos de forma más robusta
+                let config, api, QuinielaClass, UIClass;
                 
-                // Crear instancias
+                try {
+                    // Intentar cargar config primero
+                    const configModule = await import('./js/config.js');
+                    config = configModule.default;
+                    console.log('Configuración cargada');
+                } catch (error) {
+                    console.error('Error al cargar configuración:', error);
+                    throw new Error('No se pudo cargar la configuración');
+                }
+
+                try {
+                    // Cargar resto de módulos
+                    api = (await import('./js/api.js')).default;
+                    QuinielaClass = (await import('./js/quiniela.js')).default;
+                    UIClass = (await import('./js/ui.js')).default;
+                    console.log('Módulos cargados correctamente');
+                } catch (error) {
+                    console.error('Error al cargar módulos:', error);
+                    throw new Error('Error al cargar módulos necesarios');
+                }
+
+                // Inicializar aplicación
                 window.quiniela = new QuinielaClass();
                 window.ui = new UIClass();
                 
@@ -145,15 +165,17 @@
                 
                 console.log('Aplicación inicializada correctamente');
             } catch (error) {
-                console.error('Error al inicializar:', error);
-                alert('Error al cargar la aplicación');
+                console.error('Error fatal:', error);
+                alert('Error al cargar la aplicación: ' + error.message);
             }
         };
 
         // Iniciar cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', () => {
-            init().catch(console.error);
-        });
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>
