@@ -127,41 +127,38 @@
         </div>
     </div>
 
+    <!-- Configuración y carga de módulos -->
+    <script>
+        // Configuración global
+        window.appConfig = {
+            REPO_OWNER: 'AntonioIQ',
+            REPO_NAME: 'quiniela-liguilla',
+            GITHUB_TOKEN: localStorage.getItem('github_token') || ''
+        };
+    </script>
+    
     <script type="module">
         const init = async () => {
             try {
                 console.log('Iniciando carga de módulos...');
                 
-                // Cargar módulos de forma más robusta
-                let config, api, QuinielaClass, UIClass;
+                // Cargar módulos
+                const { default: api } = await import('./js/api.js');
+                const { default: QuinielaClass } = await import('./js/quiniela.js');
+                const { default: UIClass } = await import('./js/ui.js');
                 
-                try {
-                    // Intentar cargar config primero
-                    const configModule = await import('./js/config.js');
-                    config = configModule.default;
-                    console.log('Configuración cargada');
-                } catch (error) {
-                    console.error('Error al cargar configuración:', error);
-                    throw new Error('No se pudo cargar la configuración');
-                }
-
-                try {
-                    // Cargar resto de módulos
-                    api = (await import('./js/api.js')).default;
-                    QuinielaClass = (await import('./js/quiniela.js')).default;
-                    UIClass = (await import('./js/ui.js')).default;
-                    console.log('Módulos cargados correctamente');
-                } catch (error) {
-                    console.error('Error al cargar módulos:', error);
-                    throw new Error('Error al cargar módulos necesarios');
-                }
-
-                // Inicializar aplicación
+                console.log('Módulos cargados, inicializando aplicación...');
+                
+                // Crear instancias
                 window.quiniela = new QuinielaClass();
                 window.ui = new UIClass();
                 
                 // Configurar API
-                api.setCredentials(config.REPO_OWNER, config.REPO_NAME, config.GITHUB_TOKEN);
+                api.setCredentials(
+                    window.appConfig.REPO_OWNER, 
+                    window.appConfig.REPO_NAME, 
+                    window.appConfig.GITHUB_TOKEN
+                );
                 
                 console.log('Aplicación inicializada correctamente');
             } catch (error) {
