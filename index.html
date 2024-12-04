@@ -160,13 +160,20 @@
                     window.appConfig.GITHUB_TOKEN
                 );
                 
+                // Inicializar la quiniela
+                const inicializada = await window.quiniela.inicializar();
+                if (!inicializada) {
+                    throw new Error('No se pudo inicializar la quiniela');
+                }
+    
+                // Aquí puedes continuar con la lógica de inicialización de la interfaz de usuario
                 console.log('Aplicación inicializada correctamente');
             } catch (error) {
                 console.error('Error fatal:', error);
                 alert('Error al cargar la aplicación: ' + error.message);
             }
         };
-
+    
         // Iniciar cuando el DOM esté listo
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
@@ -174,5 +181,6 @@
             init();
         }
     </script>
+    
 </body>
 </html>
