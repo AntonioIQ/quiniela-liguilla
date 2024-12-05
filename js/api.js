@@ -2,7 +2,6 @@ class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
-        // Inicializar con valores del localStorage si existen
         this.REPO_OWNER = localStorage.getItem('repo_owner') || '';
         this.REPO_NAME = localStorage.getItem('repo_name') || '';
         this.accessToken = localStorage.getItem('github_token');
@@ -23,38 +22,12 @@ class API {
     async obtenerResultadosWiki() {
         try {
             console.log('Iniciando obtención de datos de Wikipedia...');
-            // Primero obtener las secciones
-            const paramsSections = new URLSearchParams({
-                action: 'parse',
-                page: 'Torneo_Apertura_2024_(México)',
-                format: 'json',
-                prop: 'sections',
-                origin: '*',
-                formatversion: '2'
-            });
-
-            const sectionsResponse = await fetch(`${this.WIKI_API}?${paramsSections}`);
-            const sectionsData = await sectionsResponse.json();
-            console.log('Secciones encontradas:', sectionsData);
-            
-            // Encontrar la sección de Liguilla
-            const liguillaSection = sectionsData.parse.sections.find(
-                section => section.line.toLowerCase().includes('liguilla')
-            );
-
-            if (!liguillaSection) {
-                throw new Error('No se encontró la sección de Liguilla');
-            }
-
-            console.log('Sección de Liguilla encontrada:', liguillaSection);
-
-            // Ahora obtener el contenido de esa sección
             const params = new URLSearchParams({
                 action: 'parse',
                 page: 'Torneo_Apertura_2024_(México)',
                 format: 'json',
                 prop: 'text',
-                section: liguillaSection.index.toString(),
+                section: '13',  // Sección de Liguilla
                 origin: '*',
                 formatversion: '2'
             });
@@ -79,52 +52,104 @@ class API {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');
         const partidos = [];
+        
+        // Fechas válidas incluyendo semifinales
+        const fechasValidas = [
+            '27 de noviembre',
+            '28 de noviembre',
+            '30 de noviembre',
+            '1 de diciembre',
+            '4 de diciembre',
+            '5 de diciembre',
+            '7 de diciembre',
+            '8 de diciembre'
+        ];
 
-        // Función auxiliar para extraer partidos de una sección
-        const procesarSeccion = (seccionId) => {
-            const seccion = doc.querySelector(seccionId);
-            if (!seccion) return;
+        // Procesar cuartos de final
+        const procesarSeccion = (sectionId) => {
+            const section = doc.querySelector(sectionId);
+            if (!section) return;
 
-            const tablas = seccion.parentElement.querySelectorAll('table.vevent');
-            tablas.forEach(tabla => {
-                const rows = tabla.querySelectorAll('tr');
-                rows.forEach(row => {
-                    // Verificar si la fila contiene datos de partido (debe tener celdas y no ser encabezado)
-                    if (row.querySelectorAll('td').length > 0 && !row.textContent.includes('UTC')) {
-                        const fecha = row.querySelector('td:first-child')?.textContent?.trim();
-                        const local = row.querySelector('td a:first-of-type')?.textContent?.trim();
-                        const visitante = row.querySelector('td a:last-of-type')?.textContent?.trim();
-                        let marcador = row.querySelector('td:nth-child(3)')?.textContent?.trim() || 'vs.';
+            let currentElement = section;
+            while (currentElement = currentElement.nextElementSibling) {
+                if (currentElement.tagName === 'TABLE') {
+                    const rows = currentElement.querySelectorAll('tr');
+                    rows.forEach(row => {
+                        const cells = row.querySelectorAll('th, td');
+                        if (cells.length > 1) {
+                            const fecha = cells[0]?.textContent?.trim() || '';
+                            
+                            if (fechasValidas.some(f => fecha.toLowerCase().includes(f))) {
+                                let local = '', visitante = '', marcador = '', estadio = '', ciudad = '';
+                                
+                                // Diferentes estructuras para cuartos y semifinales
+                                if (sectionId === '#Cuartos_de_final') {
+                                    local = cells[1]?.textContent?.trim() || '';
+                                    marcador = cells[2]?.textContent?.trim().split('(')[0].trim() || '-';
+                                    visitante = cells[3]?.textContent?.trim() || '';
+                                    const lugar = cells[4]?.textContent?.trim() || '';
+                                    [estadio, ciudad] = lugar.split(',').map(s => s.trim());
+                                } else if (sectionId === '#Semifinales') {
+                                    if (!fecha.includes('UTC')) {
+                                        local = cells[1]?.textContent?.trim() || '';
+                                        marcador = 'vs.';
+                                        visitante = cells[3]?.textContent?.trim() || '';
+                                        const lugar = cells[4]?.textContent?.trim() || '';
+                                        [estadio, ciudad] = lugar.split(',').map(s => s.trim());
+                                    }
+                                }
 
-                        // Limpiar marcador
-                        marcador = marcador.split('(')[0].trim();
-                        if (marcador.includes(':')) {
-                            const [gLocal, gVisitante] = marcador.split(':').map(g => g.trim());
-                            marcador = `${gLocal}-${gVisitante}`;
+                                if (fecha && local && visitante) {
+                                    const partido = {
+                                        fecha: this.formatearFecha(fecha),
+                                        local: local.toLowerCase(),
+                                        marcador: marcador,
+                                        visitante: visitante.toLowerCase(),
+                                        estadio: estadio || '',
+                                        ciudad: ciudad || ''
+                                    };
+                                    console.log('Partido encontrado:', partido);
+                                    partidos.push(partido);
+                                }
+                            }
                         }
-
-                        if (fecha && local && visitante) {
-                            const partido = {
-                                fecha: fecha.toLowerCase(),
-                                local: local.toLowerCase(),
-                                marcador: marcador,
-                                visitante: visitante.toLowerCase()
-                            };
-                            console.log('Partido encontrado:', partido);
-                            partidos.push(partido);
-                        }
-                    }
-                });
-            });
+                    });
+                }
+            }
         };
 
         // Procesar cada sección
-        ['#Cuartos_de_final', '#Semifinales', '#Final'].forEach(seccion => {
-            procesarSeccion(seccion);
-        });
+        procesarSeccion('#Cuartos_de_final');
+        procesarSeccion('#Semifinales');
+
+        // Ordenar por fecha
+        partidos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
         console.log('Total de partidos encontrados:', partidos.length);
+        console.log('Partidos:', partidos);
         return partidos;
+    }
+
+    formatearFecha(fechaTexto) {
+        try {
+            const meses = {
+                'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04',
+                'mayo': '05', 'junio': '06', 'julio': '07', 'agosto': '08',
+                'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12'
+            };
+            
+            const partes = fechaTexto.split(' de ');
+            if (partes.length === 3) {
+                const dia = partes[0].padStart(2, '0');
+                const mes = meses[partes[1].toLowerCase()];
+                const año = partes[2];
+                return `${dia}/${mes}/${año}`;
+            }
+            return fechaTexto;
+        } catch (error) {
+            console.error('Error al formatear fecha:', error);
+            return fechaTexto;
+        }
     }
 
     async guardarPrediccion(prediccion) {
