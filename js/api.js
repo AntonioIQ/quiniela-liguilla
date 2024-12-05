@@ -78,54 +78,68 @@ class API {
         console.log('Procesando tabla de la Liguilla...');
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');
-        const tables = doc.querySelectorAll('table');
         const partidos = [];
-        const fechasValidas = [
-            '27 de noviembre', 
-            '28 de noviembre', 
-            '30 de noviembre', 
-            '1 de diciembre',
-            '2 de diciembre',
-            '3 de diciembre',
-            '7 de diciembre',
-            '10 de diciembre',
-            '14 de diciembre',
-            '17 de diciembre'
-        ];
-
+        // Buscar tablas con la clase correcta
+        const tables = doc.querySelectorAll('table.vevent, table.vevent.plainlist');
+        console.log('Tablas encontradas:', tables.length);
         tables.forEach((table, index) => {
-            console.log(`Procesando tabla ${index + 1}...`, table);
-            // Solo procesar tablas que tienen la clase vevent o footballbox
-            if (table.classList.contains('vevent') || table.classList.contains('footballbox')) {
-                const rows = table.querySelectorAll('tr');
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('th, td');
-                    if (cells.length > 1) {
-                        const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
-                        if (fechasValidas.some(f => fecha.includes(f))) {
-                            const marcadorText = cells[2]?.textContent?.trim() || '';
-                            let marcador = '-';
-                            
-                            // Intentar extraer el marcador con diferentes formatos
-                            const marcadorMatch = marcadorText.match(/(\d+)\s*[-:]\s*(\d+)/);
-                            if (marcadorMatch) {
-                                marcador = `${marcadorMatch[1]}-${marcadorMatch[2]}`;
-                            }
-                            
+            console.log(`Procesando tabla ${index + 1}...`);
+            const rows = table.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 4 && !row.textContent.includes('UTC')) {
+                    const fecha = cells[0]?.textContent?.trim();
+                    if (fecha && fecha.length > 0) {
+                        const local = cells[2]?.textContent?.trim() || '';
+                        const visitante = cells[4]?.textContent?.trim() || '';
+                        let marcador = cells[3]?.textContent?.trim() || '';
+                        // Limpiar marcador
+                        marcador = marcador.split('(')[0].trim();
+                        if (marcador.includes(':')) {
+                            const [gLocal, gVisitante] = marcador.split(':').map(g => g.trim());
+                            marcador = `${gLocal}-${gVisitante}`;
+                        }
+                        if (fecha && local && visitante) {
                             const partido = {
-                                fecha: fecha,
-                                local: cells[1]?.textContent?.trim().toLowerCase() || '',
+                                fecha: fecha.toLowerCase(),
+                                local: local.toLowerCase(),
                                 marcador: marcador,
-                                visitante: cells[3]?.textContent?.trim().toLowerCase() || ''
+                                visitante: visitante.toLowerCase()
                             };
                             console.log('Partido encontrado:', partido);
                             partidos.push(partido);
                         }
                     }
-                });
-            }
+                }
+            });
         });
-
+        // También buscar las semifinales
+        const semiSection = doc.querySelector('#Semifinales');
+        if (semiSection) {
+            let element = semiSection.parentElement;
+            while (element = element.nextElementSibling) {
+                if (element.tagName === 'TABLE' && !element.className.includes('navbox')) {
+                    const rows = element.querySelectorAll('tr');
+                    rows.forEach(row => {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length >= 4 && !row.textContent.includes('UTC')) {
+                            const fecha = cells[0]?.textContent?.trim();
+                            if (fecha && fecha.length > 0) {
+                                const partido = {
+                                    fecha: fecha.toLowerCase(),
+                                    local: cells[1]?.textContent?.trim().toLowerCase() || '',
+                                    marcador: 'vs.',
+                                    visitante: cells[3]?.textContent?.trim().toLowerCase() || ''
+                                };
+                                console.log('Semifinal encontrada:', partido);
+                                partidos.push(partido);
+                            }
+                        }
+                    });
+                }
+            }
+        }
         console.log('Total de partidos encontrados:', partidos.length);
         console.log('Partidos:', partidos);
         return partidos;
