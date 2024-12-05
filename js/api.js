@@ -79,27 +79,30 @@ class API {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');
         const partidos = [];
-        // Buscar tablas con la clase correcta
-        const tables = doc.querySelectorAll('table.vevent, table.vevent.plainlist');
-        console.log('Tablas encontradas:', tables.length);
-        tables.forEach((table, index) => {
-            console.log(`Procesando tabla ${index + 1}...`);
-            const rows = table.querySelectorAll('tr');
-            
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 4 && !row.textContent.includes('UTC')) {
-                    const fecha = cells[0]?.textContent?.trim();
-                    if (fecha && fecha.length > 0) {
-                        const local = cells[2]?.textContent?.trim() || '';
-                        const visitante = cells[4]?.textContent?.trim() || '';
-                        let marcador = cells[3]?.textContent?.trim() || '';
+
+        // Función auxiliar para extraer partidos de una sección
+        const procesarSeccion = (seccionId) => {
+            const seccion = doc.querySelector(seccionId);
+            if (!seccion) return;
+
+            const tablas = seccion.parentElement.querySelectorAll('table.vevent');
+            tablas.forEach(tabla => {
+                const rows = tabla.querySelectorAll('tr');
+                rows.forEach(row => {
+                    // Verificar si la fila contiene datos de partido (debe tener celdas y no ser encabezado)
+                    if (row.querySelectorAll('td').length > 0 && !row.textContent.includes('UTC')) {
+                        const fecha = row.querySelector('td:first-child')?.textContent?.trim();
+                        const local = row.querySelector('td a:first-of-type')?.textContent?.trim();
+                        const visitante = row.querySelector('td a:last-of-type')?.textContent?.trim();
+                        let marcador = row.querySelector('td:nth-child(3)')?.textContent?.trim() || 'vs.';
+
                         // Limpiar marcador
                         marcador = marcador.split('(')[0].trim();
                         if (marcador.includes(':')) {
                             const [gLocal, gVisitante] = marcador.split(':').map(g => g.trim());
                             marcador = `${gLocal}-${gVisitante}`;
                         }
+
                         if (fecha && local && visitante) {
                             const partido = {
                                 fecha: fecha.toLowerCase(),
@@ -111,37 +114,16 @@ class API {
                             partidos.push(partido);
                         }
                     }
-                }
+                });
             });
+        };
+
+        // Procesar cada sección
+        ['#Cuartos_de_final', '#Semifinales', '#Final'].forEach(seccion => {
+            procesarSeccion(seccion);
         });
-        // También buscar las semifinales
-        const semiSection = doc.querySelector('#Semifinales');
-        if (semiSection) {
-            let element = semiSection.parentElement;
-            while (element = element.nextElementSibling) {
-                if (element.tagName === 'TABLE' && !element.className.includes('navbox')) {
-                    const rows = element.querySelectorAll('tr');
-                    rows.forEach(row => {
-                        const cells = row.querySelectorAll('td');
-                        if (cells.length >= 4 && !row.textContent.includes('UTC')) {
-                            const fecha = cells[0]?.textContent?.trim();
-                            if (fecha && fecha.length > 0) {
-                                const partido = {
-                                    fecha: fecha.toLowerCase(),
-                                    local: cells[1]?.textContent?.trim().toLowerCase() || '',
-                                    marcador: 'vs.',
-                                    visitante: cells[3]?.textContent?.trim().toLowerCase() || ''
-                                };
-                                console.log('Semifinal encontrada:', partido);
-                                partidos.push(partido);
-                            }
-                        }
-                    });
-                }
-            }
-        }
+
         console.log('Total de partidos encontrados:', partidos.length);
-        console.log('Partidos:', partidos);
         return partidos;
     }
 
