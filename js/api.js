@@ -27,6 +27,7 @@ export default class API {
                 page: 'Torneo_Apertura_2024_(México)',
                 format: 'json',
                 prop: 'text',
+                section: '13',
                 origin: '*',
                 formatversion: '2',
                 utf8: '1',
@@ -55,7 +56,7 @@ export default class API {
                 throw new Error('Formato de respuesta inválido');
             }
 
-            return this.procesarTablaLiguilla(data.parse.text);
+            return this.procesarTablaLiguilla(data.parse.text['*']);
         } catch (error) {
             console.error('Error al obtener datos de Wikipedia:', error);
             throw error;
@@ -67,45 +68,58 @@ export default class API {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');
 
-        // Buscar las subsecciones de la Liguilla
-        const subsecciones = [...doc.querySelectorAll('h3')].filter((h3) => {
-            const texto = h3.textContent.trim().toLowerCase();
-            return texto.includes('cuartos de final') || texto.includes('semifinales');
+        // Buscar todas las subsecciones de la Liguilla
+        const subsecciones = [...doc.querySelectorAll('h3, h4')].filter((header) => {
+            const texto = header.textContent.trim().toLowerCase();
+            return texto.includes('cuartos de final') || 
+                   texto.includes('semifinales') || 
+                   texto.includes('final') ||
+                   texto.includes('ida') ||
+                   texto.includes('vuelta');
         });
 
         const partidos = [];
+        const fechasValidas = ['27 de noviembre', '28 de noviembre', '30 de noviembre', '1 de diciembre', '2 de diciembre', '3 de diciembre', '7 de diciembre', '10 de diciembre', '14 de diciembre', '17 de diciembre'];
 
         subsecciones.forEach((subseccion) => {
             console.log('Procesando subsección:', subseccion.textContent.trim());
             
             // Buscar la siguiente tabla después del encabezado
             let nodoActual = subseccion.nextElementSibling;
+            let tablaEncontrada = false;
 
-            while (nodoActual && nodoActual.tagName !== 'H3') {
-                if (nodoActual.tagName === 'TABLE' && nodoActual.classList.contains('vevent')) {
+            while (nodoActual && !tablaEncontrada && nodoActual.tagName !== 'H3' && nodoActual.tagName !== 'H4') {
+                if (nodoActual.tagName === 'TABLE') {
                     const rows = nodoActual.querySelectorAll('tr');
                     rows.forEach((row) => {
                         const cells = row.querySelectorAll('td');
                         if (cells.length >= 4) {
-                            const local = cells[0]?.textContent?.trim();
-                            const marcadorText = cells[1]?.textContent?.trim();
-                            const visitante = cells[2]?.textContent?.trim();
-                            const estado = cells[3]?.textContent?.trim();
+                            const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
+                            
+                            // Solo procesar si es una fecha válida
+                            if (fechasValidas.some(f => fecha.includes(f))) {
+                                const local = cells[1]?.textContent?.trim().toLowerCase() || '';
+                                const marcadorText = cells[2]?.textContent?.trim() || '';
+                                const visitante = cells[3]?.textContent?.trim().toLowerCase() || '';
 
-                            const marcadorMatch = marcadorText?.match(/(\d+)\s*[-:]\s*(\d+)/);
-                            const marcador = marcadorMatch
-                                ? `${marcadorMatch[1]}-${marcadorMatch[2]}`
-                                : null;
+                                // Procesar marcador
+                                const marcadorMatch = marcadorText.match(/(\d+)\s*[-:]\s*(\d+)/);
+                                const marcador = marcadorMatch ? `${marcadorMatch[1]}-${marcadorMatch[2]}` : null;
 
-                            partidos.push({
-                                etapa: subseccion.textContent.trim(),
-                                local,
-                                visitante,
-                                marcador: marcador || '-',
-                                estado: estado || 'Pendiente',
-                            });
+                                if (fecha && local && visitante) {
+                                    partidos.push({
+                                        fecha,
+                                        local,
+                                        visitante,
+                                        marcador: marcador || '-',
+                                        etapa: subseccion.textContent.trim()
+                                    });
+                                    console.log('Partido encontrado:', { fecha, local, visitante, marcador });
+                                }
+                            }
                         }
                     });
+                    tablaEncontrada = true;
                 }
                 nodoActual = nodoActual.nextElementSibling;
             }
