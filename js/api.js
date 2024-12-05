@@ -1,10 +1,11 @@
-export default class API {
+class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
+        // Inicializar con valores del localStorage si existen
         this.REPO_OWNER = localStorage.getItem('repo_owner') || '';
         this.REPO_NAME = localStorage.getItem('repo_name') || '';
-        this.accessToken = localStorage.getItem('github_token') || '';
+        this.accessToken = localStorage.getItem('github_token');
         console.log('API initialized with token:', this.accessToken ? 'present' : 'missing');
     }
 
@@ -12,7 +13,7 @@ export default class API {
         this.REPO_OWNER = owner;
         this.REPO_NAME = repo;
         this.accessToken = token;
-
+        
         localStorage.setItem('repo_owner', owner);
         localStorage.setItem('repo_name', repo);
         localStorage.setItem('github_token', token);
@@ -22,35 +23,45 @@ export default class API {
     async obtenerResultadosWiki() {
         try {
             console.log('Iniciando obtención de datos de Wikipedia...');
+            // Primero obtener las secciones
+            const paramsSections = new URLSearchParams({
+                action: 'parse',
+                page: 'Torneo_Apertura_2024_(México)',
+                format: 'json',
+                prop: 'sections',
+                origin: '*',
+                formatversion: '2'
+            });
+
+            const sectionsResponse = await fetch(`${this.WIKI_API}?${paramsSections}`);
+            const sectionsData = await sectionsResponse.json();
+            console.log('Secciones encontradas:', sectionsData);
+            
+            // Encontrar la sección de Liguilla
+            const liguillaSection = sectionsData.parse.sections.find(
+                section => section.line.toLowerCase().includes('liguilla')
+            );
+
+            if (!liguillaSection) {
+                throw new Error('No se encontró la sección de Liguilla');
+            }
+
+            console.log('Sección de Liguilla encontrada:', liguillaSection);
+
+            // Ahora obtener el contenido de esa sección
             const params = new URLSearchParams({
                 action: 'parse',
                 page: 'Torneo_Apertura_2024_(México)',
                 format: 'json',
                 prop: 'text',
-                section: '13',
+                section: liguillaSection.index.toString(),
                 origin: '*',
-                formatversion: '2',
-                utf8: '1',
-                redirects: '1'
+                formatversion: '2'
             });
 
-            const url = `${this.WIKI_API}?${params.toString()}`;
-            console.log('URL de Wikipedia:', url);
-
-            const response = await fetch(url, {
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                mode: 'cors'
-            });
-
-            if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status}`);
-            }
-
+            const response = await fetch(`${this.WIKI_API}?${params}`);
             const data = await response.json();
-            console.log('Datos de Wikipedia:', data);
+            console.log('Datos de la sección:', data);
 
             if (!data.parse || !data.parse.text) {
                 throw new Error('Formato de respuesta inválido');
@@ -64,64 +75,54 @@ export default class API {
     }
 
     procesarTablaLiguilla(htmlContent) {
-        console.log('Contenido HTML recibido:', htmlContent);
+        console.log('Procesando tabla de la Liguilla...');
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');
-
-        // Buscar todas las subsecciones de la Liguilla
-        const subsecciones = [...doc.querySelectorAll('h3, h4')].filter((header) => {
-            const texto = header.textContent.trim().toLowerCase();
-            return texto.includes('cuartos de final') || 
-                   texto.includes('semifinales') || 
-                   texto.includes('final') ||
-                   texto.includes('ida') ||
-                   texto.includes('vuelta');
-        });
-
+        const tables = doc.querySelectorAll('table');
         const partidos = [];
-        const fechasValidas = ['27 de noviembre', '28 de noviembre', '30 de noviembre', '1 de diciembre', '2 de diciembre', '3 de diciembre', '7 de diciembre', '10 de diciembre', '14 de diciembre', '17 de diciembre'];
+        const fechasValidas = [
+            '27 de noviembre', 
+            '28 de noviembre', 
+            '30 de noviembre', 
+            '1 de diciembre',
+            '2 de diciembre',
+            '3 de diciembre',
+            '7 de diciembre',
+            '10 de diciembre',
+            '14 de diciembre',
+            '17 de diciembre'
+        ];
 
-        subsecciones.forEach((subseccion) => {
-            console.log('Procesando subsección:', subseccion.textContent.trim());
-            
-            // Buscar la siguiente tabla después del encabezado
-            let nodoActual = subseccion.nextElementSibling;
-            let tablaEncontrada = false;
-
-            while (nodoActual && !tablaEncontrada && nodoActual.tagName !== 'H3' && nodoActual.tagName !== 'H4') {
-                if (nodoActual.tagName === 'TABLE') {
-                    const rows = nodoActual.querySelectorAll('tr');
-                    rows.forEach((row) => {
-                        const cells = row.querySelectorAll('td');
-                        if (cells.length >= 4) {
-                            const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
+        tables.forEach((table, index) => {
+            console.log(`Procesando tabla ${index + 1}...`, table);
+            // Solo procesar tablas que tienen la clase vevent o footballbox
+            if (table.classList.contains('vevent') || table.classList.contains('footballbox')) {
+                const rows = table.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('th, td');
+                    if (cells.length > 1) {
+                        const fecha = cells[0]?.textContent?.trim().toLowerCase() || '';
+                        if (fechasValidas.some(f => fecha.includes(f))) {
+                            const marcadorText = cells[2]?.textContent?.trim() || '';
+                            let marcador = '-';
                             
-                            // Solo procesar si es una fecha válida
-                            if (fechasValidas.some(f => fecha.includes(f))) {
-                                const local = cells[1]?.textContent?.trim().toLowerCase() || '';
-                                const marcadorText = cells[2]?.textContent?.trim() || '';
-                                const visitante = cells[3]?.textContent?.trim().toLowerCase() || '';
-
-                                // Procesar marcador
-                                const marcadorMatch = marcadorText.match(/(\d+)\s*[-:]\s*(\d+)/);
-                                const marcador = marcadorMatch ? `${marcadorMatch[1]}-${marcadorMatch[2]}` : null;
-
-                                if (fecha && local && visitante) {
-                                    partidos.push({
-                                        fecha,
-                                        local,
-                                        visitante,
-                                        marcador: marcador || '-',
-                                        etapa: subseccion.textContent.trim()
-                                    });
-                                    console.log('Partido encontrado:', { fecha, local, visitante, marcador });
-                                }
+                            // Intentar extraer el marcador con diferentes formatos
+                            const marcadorMatch = marcadorText.match(/(\d+)\s*[-:]\s*(\d+)/);
+                            if (marcadorMatch) {
+                                marcador = `${marcadorMatch[1]}-${marcadorMatch[2]}`;
                             }
+                            
+                            const partido = {
+                                fecha: fecha,
+                                local: cells[1]?.textContent?.trim().toLowerCase() || '',
+                                marcador: marcador,
+                                visitante: cells[3]?.textContent?.trim().toLowerCase() || ''
+                            };
+                            console.log('Partido encontrado:', partido);
+                            partidos.push(partido);
                         }
-                    });
-                    tablaEncontrada = true;
-                }
-                nodoActual = nodoActual.nextElementSibling;
+                    }
+                });
             }
         });
 
@@ -171,7 +172,7 @@ export default class API {
         try {
             console.log('Obteniendo predicciones...');
             const response = await fetch(
-                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion&state=open&per_page=100`, {
+                `${this.GITHUB_API}/repos/${this.REPO_OWNER}/${this.REPO_NAME}/issues?labels=prediccion&state=open`, {
                 headers: {
                     'Authorization': `token ${this.accessToken}`
                 }
@@ -191,3 +192,5 @@ export default class API {
         }
     }
 }
+
+export default API;
