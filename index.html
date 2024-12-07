@@ -9,7 +9,7 @@
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
-        <div class="max-w-4xl mx-auto">
+        <div class="max-w-6xl mx-auto">
             <h1 class="text-3xl font-bold text-center mb-8">Quiniela Liguilla 2024</h1>
 
             <!-- Formulario de Pronóstico -->
@@ -23,35 +23,34 @@
                                placeholder="Tu nombre" required>
                     </div>
                     
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Fecha</label>
-                        <select id="fecha" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Selecciona una fecha</option>
-                        </select>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Etapa</label>
+                            <select id="etapa" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Selecciona una etapa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Partido</label>
+                            <select id="partido" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Selecciona un partido</option>
+                            </select>
+                        </div>
                     </div>
                     
-                    <div class="grid grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Local</label>
-                            <select id="local" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Selecciona equipo local</option>
-                            </select>
+                    <div class="flex gap-4 items-end">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700">Goles Local</label>
+                            <input type="number" id="goles-local" min="0" value="0" 
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Goles</label>
-                            <div class="flex gap-2 items-center">
-                                <input type="number" id="goles-local" min="0" value="0" 
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <span class="text-xl font-bold">-</span>
-                                <input type="number" id="goles-visitante" min="0" value="0" 
-                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            </div>
+                        <div class="pb-2">
+                            <span class="text-xl font-bold">-</span>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Visitante</label>
-                            <select id="visitante" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="">Selecciona equipo visitante</option>
-                            </select>
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700">Goles Visitante</label>
+                            <input type="number" id="goles-visitante" min="0" value="0" 
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
                     </div>
                     
@@ -75,7 +74,8 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Marcador</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitante</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estadio</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ciudad</th>
                             </tr>
                         </thead>
                         <tbody id="resultados-oficiales" class="bg-white divide-y divide-gray-200">
@@ -112,10 +112,10 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participante</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Etapa</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local</th>
-                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Marcador</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitante</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partido</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Predicción</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Puntos</th>
                             </tr>
                         </thead>
@@ -127,9 +127,8 @@
         </div>
     </div>
 
-    <!-- Configuración y carga de módulos -->
+    <!-- Scripts se mantienen igual -->
     <script>
-        // Configuración global
         window.appConfig = {
             REPO_OWNER: 'AntonioIQ',
             REPO_NAME: 'quiniela-liguilla',
@@ -146,27 +145,22 @@
             try {
                 console.log('Iniciando carga de módulos...');
 
-                // Crear instancias
                 const api = new API();
                 window.quiniela = new QuinielaClass(api);
                 window.ui = new UIClass(window.quiniela);
 
-                // Configurar API
                 api.setCredentials(
                     window.appConfig.REPO_OWNER, 
                     window.appConfig.REPO_NAME, 
                     window.appConfig.GITHUB_TOKEN
                 );
 
-                // Inicializar la quiniela
                 const inicializada = await window.quiniela.inicializar();
                 if (!inicializada) {
                     throw new Error('No se pudo inicializar la quiniela');
                 }
 
-                // Inicializar la interfaz de usuario
                 await window.ui.inicializar();
-
                 console.log('Aplicación inicializada correctamente');
             } catch (error) {
                 console.error('Error fatal:', error);
@@ -174,13 +168,11 @@
             }
         };
 
-        // Iniciar cuando el DOM esté listo
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
             init();
         }
     </script>
-
 </body>
 </html>

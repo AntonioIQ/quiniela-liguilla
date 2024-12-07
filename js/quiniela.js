@@ -1,5 +1,3 @@
-// js/quiniela.js
-
 export default class Quiniela {
     constructor(api) {
         this.api = api;
@@ -45,12 +43,10 @@ export default class Quiniela {
                 throw new Error('Predicción inválida');
             }
 
-            // Verificar si ya existe una predicción para este participante y partido
+            // Verificar si ya existe una predicción para este partido
             const existente = this.predicciones.find(p => 
                 p.participante === prediccion.participante &&
-                p.fecha === prediccion.fecha && 
-                p.local === prediccion.local && 
-                p.visitante === prediccion.visitante
+                p.ID === prediccion.ID
             );
 
             if (existente) {
@@ -71,8 +67,8 @@ export default class Quiniela {
     }
 
     validarPrediccion(prediccion) {
-        // Validar que todos los campos necesarios estén presentes
-        if (!prediccion.participante || !prediccion.fecha || !prediccion.local || !prediccion.visitante || 
+        // Validar campos necesarios
+        if (!prediccion.participante || !prediccion.ID || 
             prediccion.golesLocal === undefined || prediccion.golesVisitante === undefined) {
             return false;
         }
@@ -87,13 +83,8 @@ export default class Quiniela {
             throw new Error('El nombre del participante debe tener al menos 2 caracteres');
         }
 
-        // Validar que el partido existe en la lista de partidos
-        const partidoExiste = this.partidos.some(p => 
-            p.fecha === prediccion.fecha && 
-            p.local === prediccion.local && 
-            p.visitante === prediccion.visitante
-        );
-
+        // Validar que el partido existe
+        const partidoExiste = this.partidos.some(p => p.ID === prediccion.ID);
         if (!partidoExiste) {
             throw new Error('El partido seleccionado no es válido');
         }
@@ -101,51 +92,50 @@ export default class Quiniela {
         return true;
     }
 
-    obtenerFechasDisponibles() {
-        return [...new Set(this.partidos.map(p => p.fecha))].sort();
+    obtenerPartidoPorId(id) {
+        return this.partidos.find(p => p.ID === id);
     }
 
-    obtenerEquiposLocales(fecha) {
-        return [...new Set(this.partidos
-            .filter(p => p.fecha === fecha)
-            .map(p => p.local))]
-            .sort();
-    }
+    parsearMarcador(marcador) {
+        // Manejar diferentes formatos de marcador
+        if (!marcador || marcador === 'vs.' || marcador === 'vs') {
+            return null;
+        }
 
-    obtenerEquiposVisitantes(fecha, local) {
-        return this.partidos
-            .filter(p => p.fecha === fecha && p.local === local)
-            .map(p => p.visitante)
-            .sort();
+        // Extraer solo el resultado principal (antes del paréntesis si existe)
+        const resultadoPrincipal = marcador.split('(')[0].trim();
+        const [golesLocal, golesVisitante] = resultadoPrincipal.split(':').map(Number);
+        
+        return { golesLocal, golesVisitante };
     }
 
     calcularPuntosPrediccion(prediccion) {
         console.log('Calculando puntos para:', prediccion);
-        // Buscar el resultado real
-        const partido = this.partidos.find(p => 
-            p.fecha === prediccion.fecha && 
-            p.local === prediccion.local && 
-            p.visitante === prediccion.visitante
-        );
+        const partido = this.obtenerPartidoPorId(prediccion.ID);
 
         if (!partido || !partido.marcador) {
             console.log('Partido no encontrado o sin resultado');
             return null;
         }
 
-        const [golesLocalReal, golesVisitanteReal] = partido.marcador.split('-').map(Number);
-        console.log('Resultado real:', golesLocalReal, '-', golesVisitanteReal);
+        const resultadoReal = this.parsearMarcador(partido.marcador);
+        if (!resultadoReal) {
+            console.log('Partido aún no jugado');
+            return null;
+        }
+
+        console.log('Resultado real:', resultadoReal);
         console.log('Predicción:', prediccion.golesLocal, '-', prediccion.golesVisitante);
 
         // Resultado exacto
-        if (prediccion.golesLocal === golesLocalReal && 
-            prediccion.golesVisitante === golesVisitanteReal) {
+        if (prediccion.golesLocal === resultadoReal.golesLocal && 
+            prediccion.golesVisitante === resultadoReal.golesVisitante) {
             return 3;
         }
 
         // Solo ganador o empate
         const diferenciaPrediccion = prediccion.golesLocal - prediccion.golesVisitante;
-        const diferenciaReal = golesLocalReal - golesVisitanteReal;
+        const diferenciaReal = resultadoReal.golesLocal - resultadoReal.golesVisitante;
 
         if ((diferenciaPrediccion > 0 && diferenciaReal > 0) ||
             (diferenciaPrediccion === 0 && diferenciaReal === 0) ||
@@ -179,6 +169,15 @@ export default class Quiniela {
             }
         });
 
-        return Object.values(puntuacionesPorParticipante);
+        return Object.values(puntuacionesPorParticipante)
+            .sort((a, b) => b.puntosTotales - a.puntosTotales);
+    }
+
+    obtenerPartidosPorEtapa(etapa) {
+        return this.partidos.filter(p => p.etapa === etapa);
+    }
+
+    obtenerEtapas() {
+        return [...new Set(this.partidos.map(p => p.etapa))];
     }
 }
