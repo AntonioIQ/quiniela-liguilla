@@ -1,14 +1,14 @@
-// js/ui.js
-
 export default class UI {
     constructor(quiniela) {
         this.quiniela = quiniela;
+        this.inicializarElementos();
+    }
 
-        // Inicializamos variables para los elementos del DOM
+    inicializarElementos() {
+        // Elementos del formulario
         this.participanteInput = null;
-        this.fechaSelect = null;
-        this.localSelect = null;
-        this.visitanteSelect = null;
+        this.etapaSelect = null;
+        this.partidoSelect = null;
         this.golesLocalInput = null;
         this.golesVisitanteInput = null;
         this.addPredictionBtn = null;
@@ -17,19 +17,16 @@ export default class UI {
         this.prediccionesTable = null;
         this.resultadosTable = null;
         this.puntuacionTable = null;
-
-        // No llamamos a this.inicializar() aquí
     }
 
     async inicializar() {
         try {
             console.log('Inicializando UI...');
 
-            // Asignar elementos del DOM aquí
+            // Asignar elementos del DOM
             this.participanteInput = document.getElementById('participante');
-            this.fechaSelect = document.getElementById('fecha');
-            this.localSelect = document.getElementById('local');
-            this.visitanteSelect = document.getElementById('visitante');
+            this.etapaSelect = document.getElementById('etapa');
+            this.partidoSelect = document.getElementById('partido');
             this.golesLocalInput = document.getElementById('goles-local');
             this.golesVisitanteInput = document.getElementById('goles-visitante');
             this.addPredictionBtn = document.getElementById('add-prediction-btn');
@@ -57,10 +54,7 @@ export default class UI {
 
     inicializarEventos() {
         console.log('Inicializando eventos...');
-
-        // Eventos de selección
-        this.fechaSelect.addEventListener('change', () => this.actualizarEquiposLocales());
-        this.localSelect.addEventListener('change', () => this.actualizarEquiposVisitantes());
+        this.etapaSelect.addEventListener('change', () => this.actualizarPartidosDisponibles());
         this.addPredictionBtn.addEventListener('click', () => this.agregarPrediccion());
     }
 
@@ -69,17 +63,17 @@ export default class UI {
             console.log('Cargando datos...');
             this.mostrarCargando();
 
-            // Cargar fechas disponibles
-            const fechas = this.quiniela.obtenerFechasDisponibles();
-            console.log('Fechas disponibles:', fechas);
+            // Cargar etapas disponibles
+            const etapas = this.quiniela.obtenerEtapas();
+            console.log('Etapas disponibles:', etapas);
 
-            // Actualizar selector de fechas
-            this.fechaSelect.innerHTML = '<option value="">Selecciona una fecha</option>';
-            fechas.forEach(fecha => {
+            // Actualizar selector de etapas
+            this.etapaSelect.innerHTML = '<option value="">Selecciona una etapa</option>';
+            etapas.forEach(etapa => {
                 const option = document.createElement('option');
-                option.value = fecha;
-                option.textContent = this.formatearFecha(fecha);
-                this.fechaSelect.appendChild(option);
+                option.value = etapa;
+                option.textContent = etapa;
+                this.etapaSelect.appendChild(option);
             });
 
             // Actualizar todas las tablas
@@ -98,74 +92,76 @@ export default class UI {
         }
     }
 
+    actualizarPartidosDisponibles() {
+        const etapa = this.etapaSelect.value;
+        const partidos = this.quiniela.obtenerPartidosPorEtapa(etapa);
+
+        this.partidoSelect.innerHTML = '<option value="">Selecciona un partido</option>';
+        partidos.forEach(partido => {
+            const option = document.createElement('option');
+            option.value = partido.ID;
+            option.textContent = `${partido.fecha} - ${this.capitalizarEquipo(partido.local)} vs ${this.capitalizarEquipo(partido.visitante)}`;
+            this.partidoSelect.appendChild(option);
+        });
+    }
+
     async actualizarTablaResultados() {
         try {
             const resultados = this.quiniela.obtenerResultadosActuales();
-            if (!resultados) return;
+            const etapas = this.quiniela.obtenerEtapas();
 
             this.resultadosTable.innerHTML = '';
-            resultados.forEach(resultado => {
-                const row = document.createElement('tr');
-                const estado = this.calcularEstadoPartido(resultado.fecha);
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">${this.formatearFecha(resultado.fecha)}</td>
-                    <td class="px-6 py-4">${this.capitalizarEquipo(resultado.local)}</td>
-                    <td class="px-6 py-4 text-center font-bold">
-                        ${resultado.marcador || '- : -'}
-                    </td>
-                    <td class="px-6 py-4">${this.capitalizarEquipo(resultado.visitante)}</td>
-                    <td class="px-6 py-4">
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${this.getEstadoClase(estado)}">
-                            ${estado}
-                        </span>
-                    </td>
+            
+            etapas.forEach(etapa => {
+                // Crear encabezado de etapa
+                const headerRow = document.createElement('tr');
+                headerRow.innerHTML = `
+                    <th colspan="6" class="px-6 py-3 text-left text-lg font-semibold bg-gray-100">
+                        ${etapa}
+                    </th>
                 `;
-                this.resultadosTable.appendChild(row);
+                this.resultadosTable.appendChild(headerRow);
+
+                // Filtrar partidos por etapa
+                const partidosEtapa = resultados.filter(r => r.etapa === etapa);
+                
+                partidosEtapa.forEach(partido => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">${partido.fecha}</td>
+                        <td class="px-6 py-4">${this.capitalizarEquipo(partido.local)}</td>
+                        <td class="px-6 py-4 text-center font-bold">${partido.marcador}</td>
+                        <td class="px-6 py-4">${this.capitalizarEquipo(partido.visitante)}</td>
+                        <td class="px-6 py-4">${partido.estadio}</td>
+                        <td class="px-6 py-4">${partido.ciudad}</td>
+                    `;
+                    this.resultadosTable.appendChild(row);
+                });
             });
         } catch (error) {
             console.error('Error al actualizar tabla de resultados:', error);
         }
     }
 
-    async actualizarTablaPuntuacion() {
-        try {
-            const puntuaciones = await this.quiniela.calcularPuntuaciones();
-            if (!puntuaciones) return;
-
-            this.puntuacionTable.innerHTML = '';
-            puntuaciones.sort((a, b) => b.puntosTotales - a.puntosTotales)
-                        .forEach((puntuacion, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">${index + 1}°</td>
-                    <td class="px-6 py-4 font-medium">${puntuacion.participante}</td>
-                    <td class="px-6 py-4 text-center font-bold">${puntuacion.puntosTotales}</td>
-                    <td class="px-6 py-4 text-center">${puntuacion.aciertosExactos}</td>
-                    <td class="px-6 py-4 text-center">${puntuacion.soloResultado}</td>
-                `;
-                this.puntuacionTable.appendChild(row);
-            });
-        } catch (error) {
-            console.error('Error al actualizar tabla de puntuación:', error);
-        }
-    }
-
     async actualizarTablaPredicciones() {
         try {
             const predicciones = this.quiniela.predicciones;
-            if (!predicciones) return;
+            if (!predicciones?.length) return;
 
             this.prediccionesTable.innerHTML = '';
             predicciones.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                         .forEach(prediccion => {
+                const partido = this.quiniela.obtenerPartidoPorId(prediccion.ID);
+                if (!partido) return;
+
                 const puntos = this.quiniela.calcularPuntosPrediccion(prediccion);
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap">${prediccion.participante}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${this.formatearFecha(prediccion.fecha)}</td>
-                    <td class="px-6 py-4">${this.capitalizarEquipo(prediccion.local)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${partido.fecha}</td>
+                    <td class="px-6 py-4">${this.capitalizarEquipo(partido.local)}</td>
                     <td class="px-6 py-4 text-center font-bold">${prediccion.golesLocal} - ${prediccion.golesVisitante}</td>
-                    <td class="px-6 py-4">${this.capitalizarEquipo(prediccion.visitante)}</td>
+                    <td class="px-6 py-4">${this.capitalizarEquipo(partido.visitante)}</td>
                     <td class="px-6 py-4 text-center">
                         ${puntos !== null ? 
                             `<span class="px-2 py-1 text-xs font-semibold rounded-full ${this.getPuntosClase(puntos)}">
@@ -181,37 +177,6 @@ export default class UI {
         }
     }
 
-    actualizarEquiposLocales() {
-        const fecha = this.fechaSelect.value;
-        const equipos = this.quiniela.obtenerEquiposLocales(fecha);
-        console.log('Equipos locales para', fecha, ':', equipos);
-
-        this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
-        equipos.forEach(equipo => {
-            const option = document.createElement('option');
-            option.value = equipo;
-            option.textContent = this.capitalizarEquipo(equipo);
-            this.localSelect.appendChild(option);
-        });
-
-        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
-    }
-
-    actualizarEquiposVisitantes() {
-        const fecha = this.fechaSelect.value;
-        const local = this.localSelect.value;
-        const equipos = this.quiniela.obtenerEquiposVisitantes(fecha, local);
-        console.log('Equipos visitantes para', fecha, local, ':', equipos);
-
-        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
-        equipos.forEach(equipo => {
-            const option = document.createElement('option');
-            option.value = equipo;
-            option.textContent = this.capitalizarEquipo(equipo);
-            this.visitanteSelect.appendChild(option);
-        });
-    }
-
     async agregarPrediccion() {
         try {
             const participante = this.participanteInput.value.trim();
@@ -220,11 +185,16 @@ export default class UI {
                 return;
             }
 
+            const partidoId = this.partidoSelect.value;
+            const partido = this.quiniela.obtenerPartidoPorId(partidoId);
+            if (!partido) {
+                this.mostrarError('Por favor selecciona un partido válido');
+                return;
+            }
+
             const prediccion = {
                 participante: participante,
-                fecha: this.fechaSelect.value,
-                local: this.localSelect.value,
-                visitante: this.visitanteSelect.value,
+                ID: partidoId,
                 golesLocal: parseInt(this.golesLocalInput.value),
                 golesVisitante: parseInt(this.golesVisitanteInput.value),
                 timestamp: new Date().toISOString()
@@ -239,22 +209,10 @@ export default class UI {
         }
     }
 
-    calcularEstadoPartido(fecha) {
-        const fechaPartido = new Date(fecha);
-        const ahora = new Date();
-
-        if (ahora < fechaPartido) return 'Pendiente';
-        if (ahora.getTime() - fechaPartido.getTime() < 2 * 60 * 60 * 1000) return 'En Juego';
-        return 'Finalizado';
-    }
-
-    getEstadoClase(estado) {
-        switch (estado) {
-            case 'Pendiente': return 'bg-gray-100 text-gray-800';
-            case 'En Juego': return 'bg-green-100 text-green-800';
-            case 'Finalizado': return 'bg-blue-100 text-blue-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
+    // [Resto de métodos auxiliares se mantienen igual]
+    
+    capitalizarEquipo(equipo) {
+        return equipo.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 
     getPuntosClase(puntos) {
@@ -266,23 +224,10 @@ export default class UI {
         }
     }
 
-    formatearFecha(fecha) {
-        // Asumiendo que la fecha está en formato 'YYYY-MM-DD'
-        // Convertir a formato legible
-        const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
-        const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', opciones);
-        return fechaFormateada;
-    }
-
-    capitalizarEquipo(equipo) {
-        return equipo.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    }
-
     limpiarFormulario() {
         this.participanteInput.value = '';
-        this.fechaSelect.value = '';
-        this.localSelect.innerHTML = '<option value="">Selecciona equipo local</option>';
-        this.visitanteSelect.innerHTML = '<option value="">Selecciona equipo visitante</option>';
+        this.etapaSelect.value = '';
+        this.partidoSelect.innerHTML = '<option value="">Selecciona un partido</option>';
         this.golesLocalInput.value = '0';
         this.golesVisitanteInput.value = '0';
     }

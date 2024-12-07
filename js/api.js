@@ -2,7 +2,6 @@ class API {
     constructor() {
         this.GITHUB_API = 'https://api.github.com';
         this.WIKI_API = 'https://es.wikipedia.org/w/api.php';
-        // Inicializar con valores del localStorage si existen
         this.REPO_OWNER = localStorage.getItem('repo_owner') || '';
         this.REPO_NAME = localStorage.getItem('repo_name') || '';
         this.accessToken = localStorage.getItem('github_token');
@@ -20,6 +19,37 @@ class API {
         console.log('Credentials set successfully');
     }
 
+    formatearFecha(fechaTexto) {
+        const meses = {
+            'enero': 'ENE', 'febrero': 'FEB', 'marzo': 'MAR',
+            'abril': 'ABR', 'mayo': 'MAY', 'junio': 'JUN',
+            'julio': 'JUL', 'agosto': 'AGO', 'septiembre': 'SEP',
+            'octubre': 'OCT', 'noviembre': 'NOV', 'diciembre': 'DIC'
+        };
+
+        try {
+            if (fechaTexto.includes('de')) {
+                const partes = fechaTexto.split(' de ');
+                const dia = parseInt(partes[0]);
+                const mes = partes[1].toLowerCase();
+                return `2024 ${meses[mes]} ${dia.toString().padStart(2, '0')}`;
+            }
+            return fechaTexto;
+        } catch {
+            return fechaTexto;
+        }
+    }
+
+    fechaParaOrdenar(fechaStr) {
+        const meses = { 'NOV': 11, 'DIC': 12 };
+        try {
+            const [año, mes, dia] = fechaStr.split(' ');
+            return new Date(parseInt(año), meses[mes], parseInt(dia));
+        } catch {
+            return new Date(2025, 0, 1); // fecha futura para valores inválidos
+        }
+    }
+
     async obtenerResultadosWiki() {
         try {
             console.log('Iniciando obtención de datos de Wikipedia...');
@@ -28,6 +58,7 @@ class API {
                 page: 'Torneo_Apertura_2024_(México)',
                 format: 'json',
                 prop: 'text',
+                section: '13', // Sección de Liguilla
                 origin: '*',
                 formatversion: '2'
             });
@@ -52,78 +83,65 @@ class API {
         const doc = parser.parseFromString(htmlContent, 'text/html');
         const partidos = [];
 
-        // Función auxiliar para extraer texto limpio
-        const limpiarTexto = (texto) => {
-            return texto?.trim().toLowerCase() || '';
-        };
-
-        // Función para procesar una tabla de partido
-        const procesarTabla = (tabla, fase) => {
-            if (!tabla) return null;
-
+        const procesarTabla = (tabla, etapa) => {
             const filas = tabla.querySelectorAll('tr');
-            let partido = null;
-
-            filas.forEach(fila => {
-                const celdas = Array.from(fila.querySelectorAll('td'));
+            filas.forEach((fila, index) => {
+                if (index === 0) return; // Saltar encabezados
                 
-                if (celdas.length >= 4) {
-                    const fechaTexto = limpiarTexto(celdas[0]?.textContent);
-                    if (fechaTexto && !fechaTexto.includes('utc')) {
-                        const local = limpiarTexto(celdas[1]?.textContent);
-                        const marcador = limpiarTexto(celdas[2]?.textContent).split('(')[0].trim();
-                        const visitante = limpiarTexto(celdas[3]?.textContent);
+                const celdas = fila.querySelectorAll('td');
+                if (celdas.length >= 5) {
+                    const fecha = celdas[0]?.textContent.trim();
+                    const local = celdas[1]?.textContent.trim();
+                    const marcador = celdas[2]?.textContent.trim();
+                    const visitante = celdas[3]?.textContent.trim();
+                    const lugar = celdas[4]?.textContent.trim();
 
-                        if (local && visitante) {
-                            partido = {
-                                fase,
-                                fecha: fechaTexto,
-                                local,
-                                marcador: marcador || 'vs',
-                                visitante,
-                                id: `${fase}-${local}-${visitante}`.replace(/\s+/g, '-')
-                            };
-                        }
+                    if (fecha && !fecha.startsWith('--') && !fecha.includes('UTC')) {
+                        const [estadio, ciudad] = lugar.split(',').map(s => s.trim());
+                        partidos.push({
+                            fecha: this.formatearFecha(fecha),
+                            local,
+                            marcador,
+                            visitante,
+                            etapa,
+                            estadio,
+                            ciudad,
+                            id: `${etapa}-${local}-${visitante}`.replace(/\s+/g, '-').toLowerCase()
+                        });
                     }
                 }
             });
-
-            return partido;
         };
 
-        // Procesar cuartos de final
-        const cuartosSection = doc.querySelector('#Cuartos_de_final');
-        if (cuartosSection) {
-            let element = cuartosSection;
-            while (element = element.nextElementSibling) {
-                if (element.tagName === 'TABLE') {
-                    const partido = procesarTabla(element, 'cuartos');
-                    if (partido) {
-                        partidos.push(partido);
-                    }
+        // Procesar tablas de cuartos de final y semifinales
+        const fechasRelevantes = /27 de noviembre|28 de noviembre|30 de noviembre|1 de diciembre|diciembre de 2024/;
+        const tablas = doc.querySelectorAll('table.wikitable');
+        
+        tablas.forEach(tabla => {
+            const encabezadoPrevio = tabla.previousElementSibling;
+            if (encabezadoPrevio) {
+                const textoEncabezado = encabezadoPrevio.textContent.toLowerCase();
+                if (textoEncabezado.includes('cuartos de final')) {
+                    procesarTabla(tabla, 'Cuartos de final');
+                } else if (textoEncabezado.includes('semifinales')) {
+                    procesarTabla(tabla, 'Semifinales');
                 }
-                // Detenerse cuando llegue a la siguiente sección principal
-                if (element.tagName === 'H2') break;
             }
-        }
+        });
 
-        // Procesar semifinales
-        const semisSection = doc.querySelector('#Semifinales');
-        if (semisSection) {
-            let element = semisSection;
-            while (element = element.nextElementSibling) {
-                if (element.tagName === 'TABLE') {
-                    const partido = procesarTabla(element, 'semifinal');
-                    if (partido) {
-                        partidos.push(partido);
-                    }
-                }
-                if (element.tagName === 'H2') break;
-            }
-        }
+        // Ordenar partidos por fecha
+        partidos.sort((a, b) => {
+            const fechaA = this.fechaParaOrdenar(a.fecha);
+            const fechaB = this.fechaParaOrdenar(b.fecha);
+            return fechaA - fechaB;
+        });
 
-        console.log('Total de partidos encontrados:', partidos.length);
-        console.log('Partidos:', partidos);
+        // Asignar IDs secuenciales
+        partidos.forEach((partido, index) => {
+            partido.ID = index + 1;
+        });
+
+        console.log('Partidos procesados:', partidos);
         return partidos;
     }
 
