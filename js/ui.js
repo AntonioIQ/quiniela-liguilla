@@ -78,9 +78,9 @@ export default class UI {
 
             // Actualizar todas las tablas
             await Promise.all([
-                this.actualizarTablaResultados(),
-                this.actualizarTablaPuntuacion(),
-                this.actualizarTablaPredicciones()
+                this.actualizarResultadosOficiales(),
+                this.actualizarTablaPuntuaciones(),
+                this.actualizarPredicciones()
             ]);
 
             console.log('Datos cargados correctamente');
@@ -92,20 +92,7 @@ export default class UI {
         }
     }
 
-    actualizarPartidosDisponibles() {
-        const etapa = this.etapaSelect.value;
-        const partidos = this.quiniela.obtenerPartidosPorEtapa(etapa);
-
-        this.partidoSelect.innerHTML = '<option value="">Selecciona un partido</option>';
-        partidos.forEach(partido => {
-            const option = document.createElement('option');
-            option.value = partido.ID;
-            option.textContent = `${partido.fecha} - ${this.capitalizarEquipo(partido.local)} vs ${this.capitalizarEquipo(partido.visitante)}`;
-            this.partidoSelect.appendChild(option);
-        });
-    }
-
-    async actualizarTablaResultados() {
+    async actualizarResultadosOficiales() {
         try {
             const resultados = this.quiniela.obtenerResultadosActuales();
             const etapas = this.quiniela.obtenerEtapas();
@@ -130,89 +117,88 @@ export default class UI {
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap">${partido.fecha}</td>
                         <td class="px-6 py-4">${this.capitalizarEquipo(partido.local)}</td>
-                        <td class="px-6 py-4 text-center font-bold">${partido.marcador}</td>
+                        <td class="px-6 py-4 text-center font-bold">${partido.marcador || '-'}</td>
                         <td class="px-6 py-4">${this.capitalizarEquipo(partido.visitante)}</td>
-                        <td class="px-6 py-4">${partido.estadio}</td>
-                        <td class="px-6 py-4">${partido.ciudad}</td>
+                        <td class="px-6 py-4">${partido.estadio || '-'}</td>
+                        <td class="px-6 py-4">${partido.ciudad || '-'}</td>
                     `;
                     this.resultadosTable.appendChild(row);
                 });
             });
         } catch (error) {
-            console.error('Error al actualizar tabla de resultados:', error);
+            console.error('Error al actualizar resultados:', error);
         }
     }
 
-    async actualizarTablaPredicciones() {
+    async actualizarTablaPuntuaciones() {
         try {
-            const predicciones = this.quiniela.predicciones;
+            const puntuaciones = await this.quiniela.calcularPuntuaciones();
+            if (!puntuaciones?.length) return;
+
+            this.puntuacionTable.innerHTML = '';
+            puntuaciones.forEach((puntuacion, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${index + 1}°</td>
+                    <td class="px-6 py-4 font-medium">${puntuacion.participante}</td>
+                    <td class="px-6 py-4 text-center font-bold">${puntuacion.puntosTotales}</td>
+                    <td class="px-6 py-4 text-center">${puntuacion.aciertosExactos}</td>
+                    <td class="px-6 py-4 text-center">${puntuacion.soloResultado}</td>
+                `;
+                this.puntuacionTable.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error al actualizar puntuaciones:', error);
+        }
+    }
+
+    async actualizarPredicciones() {
+        try {
+            const predicciones = await this.quiniela.cargarPredicciones();
             if (!predicciones?.length) return;
 
             this.prediccionesTable.innerHTML = '';
-            predicciones.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                        .forEach(prediccion => {
+            predicciones.forEach(prediccion => {
                 const partido = this.quiniela.obtenerPartidoPorId(prediccion.ID);
                 if (!partido) return;
 
-                const puntos = this.quiniela.calcularPuntosPrediccion(prediccion);
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">${prediccion.participante}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${partido.fecha}</td>
-                    <td class="px-6 py-4">${this.capitalizarEquipo(partido.local)}</td>
-                    <td class="px-6 py-4 text-center font-bold">${prediccion.golesLocal} - ${prediccion.golesVisitante}</td>
-                    <td class="px-6 py-4">${this.capitalizarEquipo(partido.visitante)}</td>
-                    <td class="px-6 py-4 text-center">
-                        ${puntos !== null ? 
-                            `<span class="px-2 py-1 text-xs font-semibold rounded-full ${this.getPuntosClase(puntos)}">
-                                ${puntos}
-                            </span>` : 
-                            '-'}
-                    </td>
+                    <td class="px-6 py-4">${prediccion.participante}</td>
+                    <td class="px-6 py-4">${partido.etapa}</td>
+                    <td class="px-6 py-4">${partido.fecha}</td>
+                    <td class="px-6 py-4">${this.capitalizarEquipo(partido.local)} vs ${this.capitalizarEquipo(partido.visitante)}</td>
+                    <td class="px-6 py-4 text-center">${prediccion.golesLocal} - ${prediccion.golesVisitante}</td>
+                    <td class="px-6 py-4 text-center">${this.formatearPuntos(this.quiniela.calcularPuntosPrediccion(prediccion))}</td>
                 `;
                 this.prediccionesTable.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al actualizar tabla de predicciones:', error);
+            console.error('Error al actualizar predicciones:', error);
         }
     }
 
-    async agregarPrediccion() {
-        try {
-            const participante = this.participanteInput.value.trim();
-            if (!participante) {
-                this.mostrarError('Por favor ingresa el nombre del participante');
-                return;
-            }
-
-            const partidoId = this.partidoSelect.value;
-            const partido = this.quiniela.obtenerPartidoPorId(partidoId);
-            if (!partido) {
-                this.mostrarError('Por favor selecciona un partido válido');
-                return;
-            }
-
-            const prediccion = {
-                participante: participante,
-                ID: partidoId,
-                golesLocal: parseInt(this.golesLocalInput.value),
-                golesVisitante: parseInt(this.golesVisitanteInput.value),
-                timestamp: new Date().toISOString()
-            };
-
-            await this.quiniela.guardarPrediccion(prediccion);
-            await this.cargarDatos();
-            this.limpiarFormulario();
-            this.mostrarExito('Pronóstico guardado correctamente');
-        } catch (error) {
-            this.mostrarError(error.message);
+    actualizarPartidosDisponibles() {
+        const etapa = this.etapaSelect.value;
+        if (!etapa) {
+            this.partidoSelect.innerHTML = '<option value="">Selecciona un partido</option>';
+            return;
         }
+
+        const partidos = this.quiniela.obtenerPartidosPorEtapa(etapa);
+        
+        this.partidoSelect.innerHTML = '<option value="">Selecciona un partido</option>';
+        partidos.forEach(partido => {
+            const option = document.createElement('option');
+            option.value = partido.ID;
+            option.textContent = `${partido.fecha} - ${this.capitalizarEquipo(partido.local)} vs ${this.capitalizarEquipo(partido.visitante)}`;
+            this.partidoSelect.appendChild(option);
+        });
     }
 
-    // [Resto de métodos auxiliares se mantienen igual]
-    
-    capitalizarEquipo(equipo) {
-        return equipo.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    formatearPuntos(puntos) {
+        if (puntos === null) return '-';
+        return `<span class="px-2 py-1 text-xs font-semibold rounded-full ${this.getPuntosClase(puntos)}">${puntos}</span>`;
     }
 
     getPuntosClase(puntos) {
@@ -224,12 +210,8 @@ export default class UI {
         }
     }
 
-    limpiarFormulario() {
-        this.participanteInput.value = '';
-        this.etapaSelect.value = '';
-        this.partidoSelect.innerHTML = '<option value="">Selecciona un partido</option>';
-        this.golesLocalInput.value = '0';
-        this.golesVisitanteInput.value = '0';
+    capitalizarEquipo(equipo) {
+        return equipo.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     }
 
     mostrarCargando() {
@@ -242,7 +224,7 @@ export default class UI {
 
     mostrarError(mensaje) {
         const alert = document.createElement('div');
-        alert.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg notification';
+        alert.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50';
         alert.textContent = mensaje;
         document.body.appendChild(alert);
         setTimeout(() => alert.remove(), 3000);
@@ -250,7 +232,7 @@ export default class UI {
 
     mostrarExito(mensaje) {
         const alert = document.createElement('div');
-        alert.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg notification';
+        alert.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50';
         alert.textContent = mensaje;
         document.body.appendChild(alert);
         setTimeout(() => alert.remove(), 3000);
